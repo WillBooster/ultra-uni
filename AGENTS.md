@@ -54,3 +54,7 @@
 - Build prompts as a single template literal instead of `join()` on a pre-computable array of strings.
 - Assume all environment variables are defined; if validation is needed, `assert` them at startup to fail fast.
 - Assume local tools such as `git`, `gh`, and `ghq` are installed and authenticated.
+
+## Notes
+
+- The Rust toolchain (version, components, and targets) is pinned only in `rust-toolchain.toml`, which mise reads; do not add `rust` to `mise.toml`.

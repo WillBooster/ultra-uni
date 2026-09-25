@@ -1,5 +1,7 @@
 # ultra-uni
 
+[![Test](https://github.com/WillBooster/ultra-uni/actions/workflows/test.yml/badge.svg)](https://github.com/WillBooster/ultra-uni/actions/workflows/test.yml)
+[![Test rust](https://github.com/WillBooster/ultra-uni/actions/workflows/test-rust.yml/badge.svg)](https://github.com/WillBooster/ultra-uni/actions/workflows/test-rust.yml)
 [![wbfy](https://img.shields.io/badge/wbfy-20.20.1-1e90ff.svg)](https://github.com/WillBooster/shared/tree/main/packages/wbfy)
 
 All-in-one metrics, linter, and formatter for multiple languages, built for WebAssembly and Cloudflare Workers.
