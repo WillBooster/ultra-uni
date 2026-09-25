@@ -1,0 +1,61 @@
+{
+  "name": "ultra-uni",
+  "version": "0.0.0-semantically-released",
+  "description": "All-in-one metrics, linter, and formatter for multiple languages, built for WebAssembly and Cloudflare Workers.",
+  "keywords": [
+    "cloudflare-workers",
+    "formatter",
+    "linter",
+    "metrics",
+    "tree-sitter",
+    "wasm"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WillBooster/ultra-uni.git"
+  },
+  "license": "Apache-2.0",
+  "author": "WillBooster Inc.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "node scripts/buildWasm.mjs",
+    "cleanup": "bun wb lint --fix --format",
+    "format": "bun wb lint --format",
+    "lint": "bun wb lint",
+    "lint-fix": "bun wb lint --fix",
+    "prepare": "(bun lefthook install || true) && (test ! -f .lefthook/normalize-bun-lockfile.sh || bash .lefthook/normalize-bun-lockfile.sh)",
+    "test": "bun wb test",
+    "test/ci": "bun run test",
+    "typecheck": "bun wb typecheck",
+    "verify": "bun wb verify",
+    "verify-full": "bun wb verify --full"
+  },
+  "devDependencies": {
+    "@tsconfig/bun": "1.0.11",
+    "@types/bun": "1.4.2",
+    "@willbooster/oxfmt-config": "1.2.2",
+    "@willbooster/oxlint-config": "1.4.8",
+    "@willbooster/wb": "22.7.1",
+    "lefthook": "2.1.14",
+    "miniflare": "4.20260730.0",
+    "oxfmt": "0.68.0",
+    "oxlint": "1.83.0",
+    "oxlint-tsgolint": "7.0.2002",
+    "sort-package-json": "4.0.0",
+    "typescript": "7.0.2",
+    "vitest": "4.1.9"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}
