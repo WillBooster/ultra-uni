@@ -1,4 +1,12 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["github>WillBooster/willbooster-configs:renovate.jsonc"],
+  "packageRules": [
+    {
+      "description": "The wasm-bindgen CLI must match the wasm-bindgen crate exactly, so bump both pins in one PR",
+      "groupName": "wasm-bindgen",
+      "groupSlug": "wasm-bindgen",
+      "matchPackageNames": ["wasm-bindgen", "wasm-bindgen/wasm-bindgen"],
+    },
+  ],
 }
