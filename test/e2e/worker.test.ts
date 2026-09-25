@@ -392,6 +392,11 @@ test('formats trailing whitespace in HTML script bodies', async () => {
   expect(body).toEqual({ result: '<script>\nvar x = 1;\n</script>\n' });
 });
 
+test('formats trailing whitespace between the parts of a string concatenation', async () => {
+  const { body } = await call('format', 'python', 'x = ("a"   \n     "b")\n');
+  expect(body).toEqual({ result: 'x = ("a"\n     "b")\n' });
+});
+
 test('keeps trailing whitespace that ends a multi-line literal', async () => {
   const source = 'const a =\n    \\\\hello  \n    \\\\world  \n;\n';
   const { body } = await call('format', 'zig', source);

@@ -80,10 +80,8 @@ fn measure_lines(source: &str, tree: Option<&Tree>) -> LineMetrics {
     for (kind, blank) in kinds.into_iter().zip(is_blank) {
         match kind {
             _ if blank => metrics.blank += 1,
-            LineKind::Code => metrics.code += 1,
             LineKind::Comment => metrics.comment += 1,
-            // Whitespace-only text between tokens, e.g., inside a multi-line string's delimiters.
-            LineKind::Blank => metrics.code += 1,
+            LineKind::Code | LineKind::Blank => metrics.code += 1,
         }
     }
     metrics

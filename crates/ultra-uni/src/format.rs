@@ -25,7 +25,7 @@ pub fn format(source: &str, tree: Option<&Tree>) -> String {
 pub fn trailing_whitespace(source: &str, tree: Option<&Tree>) -> Vec<Range<usize>> {
     let mut literals = Vec::new();
     if let Some(tree) = tree {
-        collect_multiline_literals(tree.root_node(), &mut literals);
+        collect_literals(tree.root_node(), &mut literals);
     }
     let mut ranges = Vec::new();
     let mut line_start = 0;
@@ -44,20 +44,25 @@ pub fn trailing_whitespace(source: &str, tree: Option<&Tree>) -> Vec<Range<usize
     ranges
 }
 
-fn collect_multiline_literals(node: Node, literals: &mut Vec<Range<usize>>) {
-    if node.start_position().row == node.end_position().row {
-        return;
-    }
-    let kind = node.kind();
-    let is_literal = ["string", "heredoc", "nowdoc"]
-        .iter()
-        .any(|keyword| kind.contains(keyword));
-    if is_literal {
+/// Collects the innermost literal nodes, so that containers such as a concatenation of strings do
+/// not hide the whitespace between their parts. Single-line nodes count too because some grammars
+/// split a multi-line literal into one node per line, as PHP does for heredocs.
+fn collect_literals(node: Node, literals: &mut Vec<Range<usize>>) {
+    let mut cursor = node.walk();
+    let has_literal_child = node
+        .named_children(&mut cursor)
+        .any(|child| is_literal_kind(child.kind()));
+    if is_literal_kind(node.kind()) && !has_literal_child {
         literals.push(node.byte_range());
         return;
     }
-    let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
-        collect_multiline_literals(child, literals);
+        collect_literals(child, literals);
     }
+}
+
+fn is_literal_kind(kind: &str) -> bool {
+    ["string", "heredoc", "nowdoc"]
+        .iter()
+        .any(|keyword| kind.contains(keyword))
 }
