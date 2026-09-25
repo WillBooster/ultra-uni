@@ -35,8 +35,8 @@ Supported languages (`supportedLanguages()`): `c`, `cpp`, `csharp`, `css`, `dart
 ### Metrics
 
 - `lines`: a line is `blank` if it holds only whitespace, `comment` if all its tokens belong to comments, and `code` otherwise.
-- `functionCount`: functions, methods, constructors, and lambdas.
-- `cyclomaticComplexity`: McCabe complexity of the whole file: 1, plus 1 per function, plus 1 per conditional, loop, exception handler, non-default case, and logical operator (`&&`, `||`, `and`, `or`, `??`).
+- `functionCount`: functions, methods, constructors, and lambdas that have a body.
+- `cyclomaticComplexity`: McCabe complexity of the whole file: 1, plus 1 per function, plus 1 per conditional, loop, exception handler, case other than a default or `_` wildcard, and logical operator (`&&`, `||`, `and`, `or`, `??`).
 - `cognitiveComplexity`: a simplified SonarSource cognitive complexity: 1 plus the nesting level per conditional, loop, handler, and switch; 1 per `else` or chained branch (`elif`, `elsif`, `elseif`); and 1 per sequence of the same logical operator.
 - `maxNestingDepth`: the deepest nesting of conditionals, loops, handlers, and switches.
 
@@ -44,7 +44,7 @@ CSS, HTML, JSP, and text have no functions or control flow, so their complexity 
 
 ### Linting and formatting
 
-`lint` reports syntax errors (`syntax-error`) and trailing whitespace outside multi-line literals (`trailing-whitespace`). Positions are 1-based, with columns counted in UTF-16 code units like JavaScript string indices.
+`lint` reports syntax errors (`syntax-error`) and trailing spaces and tabs outside multi-line literals (`trailing-whitespace`). Positions are 1-based, with columns counted in UTF-16 code units like JavaScript string indices.
 
 `format` removes trailing whitespace outside multi-line literals and trailing blank lines, converts CRLF line endings outside literals to LF, and ends non-empty code with a newline. It throws when the code has syntax errors.
 

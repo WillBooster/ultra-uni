@@ -268,6 +268,36 @@ f x = if x > 0 && x < 10 then 1 else if x < 0 then 2 else 3
   });
 });
 
+test.each([
+  {
+    language: 'rust',
+    source: 'fn f(x: i32) -> i32 { match x { 1 => 1, _ => 0 } }\n',
+    functionCount: 1,
+    cyclomaticComplexity: 3,
+  },
+  {
+    language: 'python',
+    source: 'def f(x):\n    match x:\n        case 1:\n            pass\n        case _:\n            pass\n',
+    functionCount: 1,
+    cyclomaticComplexity: 3,
+  },
+  { language: 'haskell', source: 'f x = case x of\n  1 -> 1\n  _ -> 0\n', functionCount: 1, cyclomaticComplexity: 3 },
+  { language: 'ruby', source: 'f = ->(x) { x }\n', functionCount: 1, cyclomaticComplexity: 2 },
+  { language: 'cpp', source: 'void f(int&& x) {}\n', functionCount: 1, cyclomaticComplexity: 2 },
+  {
+    language: 'csharp',
+    source: 'abstract class A { public int X { get; set; } abstract int G(); }\n',
+    functionCount: 0,
+    cyclomaticComplexity: 1,
+  },
+])(
+  'counts neither wildcard cases nor bodiless or duplicate functions in $language',
+  async ({ cyclomaticComplexity, functionCount, language, source }) => {
+    const { body } = await call('measure', language, source);
+    expect(body).toMatchObject({ result: { cyclomaticComplexity, functionCount } });
+  }
+);
+
 // Complexity metrics are omitted.
 test.each([
   {
@@ -307,6 +337,20 @@ test('reports syntax errors and trailing whitespace outside literals', async () 
         message: 'Unexpected syntax',
         start: { line: 3, column: 9 },
         end: { line: 3, column: 10 },
+      },
+    ],
+  });
+});
+
+test('does not report CRLF line endings as trailing whitespace', async () => {
+  const { body } = await call('lint', 'text', 'a\r\nb \r\n');
+  expect(body).toEqual({
+    result: [
+      {
+        rule: 'trailing-whitespace',
+        message: 'Trailing whitespace',
+        start: { line: 2, column: 2 },
+        end: { line: 2, column: 3 },
       },
     ],
   });

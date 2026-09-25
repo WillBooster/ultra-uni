@@ -37,6 +37,7 @@ pub fn measure(source: &str, tree: Option<&Tree>, profile: Option<&Profile>) -> 
         };
     };
     let mut counter = ComplexityCounter {
+        source,
         profile,
         function_count: 0,
         // The file itself is one path even without any function.
@@ -130,6 +131,7 @@ struct Nesting {
 /// complexity (a simplified SonarSource model: one per control structure plus its nesting level,
 /// one per `else` or chained branch, and one per sequence of like logical operators).
 struct ComplexityCounter<'a> {
+    source: &'a str,
     profile: &'a Profile,
     function_count: u32,
     cyclomatic: u32,
@@ -143,7 +145,7 @@ impl ComplexityCounter<'_> {
         let profile = self.profile;
         let mut inner = nesting;
         if !node.is_named() {
-            if profile.logical_operators.contains(&kind) {
+            if profile.logical_operators.contains(&kind) && is_binary_operator(node) {
                 self.cyclomatic += 1;
                 if !continues_logical_sequence(node) {
                     self.cognitive += 1;
@@ -151,7 +153,11 @@ impl ComplexityCounter<'_> {
             } else if kind == "else" && is_else_branch(node, profile) {
                 self.cognitive += 1;
             }
-        } else if profile.functions.contains(&kind) && !is_function_type(node) {
+        } else if profile.functions.contains(&kind)
+            && !is_function_type(node)
+            && !(profile.optional_body_functions.contains(&kind)
+                && node.child_by_field_name("body").is_none())
+        {
             self.function_count += 1;
             self.cyclomatic += 1;
             if nesting.function > 0 {
@@ -173,7 +179,7 @@ impl ComplexityCounter<'_> {
             self.cognitive += 1 + nesting.cognitive;
             inner.cognitive += 1;
             inner.control += 1;
-        } else if profile.cases.contains(&kind) && !is_default_case(node) {
+        } else if profile.cases.contains(&kind) && !is_default_case(node, self.source) {
             self.cyclomatic += 1;
         }
         self.max_nesting_depth = self.max_nesting_depth.max(inner.control);
@@ -182,6 +188,11 @@ impl ComplexityCounter<'_> {
             self.visit(child, inner);
         }
     }
+}
+
+/// Excludes the same token used otherwise, such as C++'s rvalue reference `T&&`.
+fn is_binary_operator(operator: Node) -> bool {
+    operator.prev_sibling().is_some() && operator.next_sibling().is_some()
 }
 
 /// Whether the operator's left operand is a binary expression with the same operator, as in
@@ -213,8 +224,15 @@ fn is_else_branch(token: Node, profile: &Profile) -> bool {
     })
 }
 
-fn is_default_case(node: Node) -> bool {
+/// A default case is marked by a `default` or `else` keyword, or has the wildcard `_` as its
+/// entire pattern.
+fn is_default_case(node: Node, source: &str) -> bool {
     let mut cursor = node.walk();
-    node.children(&mut cursor)
-        .any(|child| !child.is_named() && matches!(child.kind(), "default" | "else" | "_"))
+    let has_default_keyword = node
+        .children(&mut cursor)
+        .any(|child| !child.is_named() && matches!(child.kind(), "default" | "else" | "_"));
+    let pattern = node
+        .child_by_field_name("pattern")
+        .or_else(|| node.named_child(0));
+    has_default_keyword || pattern.is_some_and(|pattern| &source[pattern.byte_range()] == "_")
 }

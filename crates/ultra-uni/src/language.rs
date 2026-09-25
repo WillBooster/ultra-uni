@@ -26,6 +26,9 @@ pub const LANGUAGE_IDS: &[&str] = &[
 /// Node kinds that drive complexity metrics; each list names kinds of the language's grammar.
 pub struct Profile {
     pub functions: &'static [&'static str],
+    /// Function kinds that only declare a signature when their `body` field is absent, such as
+    /// abstract methods and auto-property accessors.
+    pub optional_body_functions: &'static [&'static str],
     /// Conditionals, loops, and handlers: they add a path and nest the code inside them.
     pub branches: &'static [&'static str],
     /// Branches that continue a chain (e.g., `elif`) and therefore do not nest.
@@ -83,6 +86,7 @@ const C_LIKE_LOGICAL_OPERATORS: &[&str] = &["&&", "||"];
 
 const C: Profile = Profile {
     functions: &["function_definition"],
+    optional_body_functions: &[],
     branches: &[
         "if_statement",
         "for_statement",
@@ -98,6 +102,7 @@ const C: Profile = Profile {
 
 const CPP: Profile = Profile {
     functions: &["function_definition", "lambda_expression"],
+    optional_body_functions: &["function_definition"],
     branches: &[
         "if_statement",
         "for_statement",
@@ -124,6 +129,14 @@ const CSHARP: Profile = Profile {
         "conversion_operator_declaration",
         "accessor_declaration",
     ],
+    optional_body_functions: &[
+        "method_declaration",
+        "constructor_declaration",
+        "local_function_statement",
+        "operator_declaration",
+        "conversion_operator_declaration",
+        "accessor_declaration",
+    ],
     branches: &[
         "if_statement",
         "for_statement",
@@ -141,6 +154,7 @@ const CSHARP: Profile = Profile {
 
 const DART: Profile = Profile {
     functions: &["function_body", "function_expression"],
+    optional_body_functions: &[],
     branches: &[
         "if_statement",
         "if_element",
@@ -159,6 +173,7 @@ const DART: Profile = Profile {
 
 const HASKELL: Profile = Profile {
     functions: &["function", "lambda", "lambda_case"],
+    optional_body_functions: &[],
     branches: &["conditional"],
     chained_branches: &[],
     switches: &["case", "multi_way_if"],
@@ -173,6 +188,7 @@ const JAVA: Profile = Profile {
         "compact_constructor_declaration",
         "lambda_expression",
     ],
+    optional_body_functions: &["method_declaration"],
     branches: &[
         "if_statement",
         "for_statement",
@@ -198,6 +214,7 @@ const JAVASCRIPT: Profile = Profile {
         "arrow_function",
         "method_definition",
     ],
+    optional_body_functions: &[],
     branches: &[
         "if_statement",
         "for_statement",
@@ -222,6 +239,7 @@ const KOTLIN: Profile = Profile {
         "getter",
         "setter",
     ],
+    optional_body_functions: &[],
     branches: &[
         "if_expression",
         "for_statement",
@@ -242,6 +260,7 @@ const PHP: Profile = Profile {
         "anonymous_function",
         "arrow_function",
     ],
+    optional_body_functions: &["method_declaration"],
     branches: &[
         "if_statement",
         "for_statement",
@@ -259,6 +278,7 @@ const PHP: Profile = Profile {
 
 const PYTHON: Profile = Profile {
     functions: &["function_definition", "lambda"],
+    optional_body_functions: &[],
     branches: &[
         "if_statement",
         "for_statement",
@@ -273,7 +293,9 @@ const PYTHON: Profile = Profile {
 };
 
 const RUBY: Profile = Profile {
-    functions: &["method", "singleton_method", "lambda", "block", "do_block"],
+    // A lambda's body is a `block` or `do_block`, which counts it.
+    functions: &["method", "singleton_method", "block", "do_block"],
+    optional_body_functions: &[],
     branches: &[
         "if",
         "unless",
@@ -296,6 +318,7 @@ const RUBY: Profile = Profile {
 
 const RUST: Profile = Profile {
     functions: &["function_item", "closure_expression"],
+    optional_body_functions: &[],
     branches: &[
         "if_expression",
         "for_expression",
@@ -310,6 +333,7 @@ const RUST: Profile = Profile {
 
 const ZIG: Profile = Profile {
     functions: &["function_declaration"],
+    optional_body_functions: &["function_declaration"],
     branches: &[
         "if_statement",
         "if_expression",
@@ -339,6 +363,7 @@ mod tests {
             };
             let named_kinds = [
                 profile.functions,
+                profile.optional_body_functions,
                 profile.branches,
                 profile.chained_branches,
                 profile.switches,

@@ -25,7 +25,14 @@ pub fn lint(source: &str, tree: Option<&Tree>) -> Vec<Diagnostic> {
     if let Some(tree) = tree {
         collect_syntax_errors(&lines, tree.root_node(), &mut diagnostics);
     }
-    for range in trailing_whitespace(source, tree) {
+    for mut range in trailing_whitespace(source, tree) {
+        // `format` converts CRLF, but a CRLF line ending alone is not trailing whitespace.
+        if source[range.clone()].ends_with('\r') {
+            range.end -= 1;
+        }
+        if range.is_empty() {
+            continue;
+        }
         diagnostics.push(Diagnostic {
             rule: "trailing-whitespace",
             message: "Trailing whitespace".to_owned(),
