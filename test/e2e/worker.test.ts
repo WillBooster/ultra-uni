@@ -28,6 +28,11 @@ test.each([
     source: 'def f():\n    return 1\n',
     tree: '(module (function_definition name: (identifier) parameters: (parameters) body: (block (return_statement (integer)))))',
   },
+  {
+    language: 'tsx',
+    source: 'const x = <div />;',
+    tree: '(program (lexical_declaration (variable_declarator name: (identifier) value: (jsx_self_closing_element name: (identifier)))))',
+  },
 ])('parses $language inside workerd', async ({ language, source, tree }) => {
   const response = await miniflare.dispatchFetch('http://localhost', {
     body: JSON.stringify({ language, source }),
