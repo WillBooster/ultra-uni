@@ -44,8 +44,8 @@ execFileSync(
   { stdio: 'inherit' }
 );
 
-// Workers bundlers (wrangler, @cloudflare/vite-plugin) turn a `.wasm` import into a compiled
-// WebAssembly.Module, so the entry point instantiates it synchronously at import time.
+// Wrangler turns a `.wasm` import into a compiled WebAssembly.Module, so the entry point
+// instantiates it synchronously at import time.
 fs.writeFileSync(
   path.join(distDir, 'index.js'),
   `import wasmModule from './ultra_uni_bg.wasm';
