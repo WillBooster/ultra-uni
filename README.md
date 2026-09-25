@@ -19,4 +19,4 @@ Supported languages: `typescript`, `tsx`, and `python`.
 
 ## Development
 
-Tools are pinned in `mise.toml` (including Rust, zig, and wasm-bindgen); run `mise install`, then `bun install` and `bun run test`.
+Tools are pinned in `mise.toml` (including zig and wasm-bindgen) and the Rust toolchain in `rust-toolchain.toml`, which mise also reads; run `mise install`, then `bun install` and `bun run test`.
