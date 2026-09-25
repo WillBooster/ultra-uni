@@ -1,0 +1,32 @@
+{
+  "name": "ultra-uni",
+  "version": "0.0.0-semantically-released",
+  "description": "All-in-one metrics, linter, and formatter for multiple languages, built for WebAssembly and Cloudflare Workers.",
+  "keywords": ["cloudflare-workers", "formatter", "linter", "metrics", "tree-sitter", "wasm"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WillBooster/ultra-uni.git"
+  },
+  "license": "Apache-2.0",
+  "author": "WillBooster Inc.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist/"],
+  "scripts": {
+    "build": "node scripts/buildWasm.mjs",
+    "test": "bun run build && vitest run"
+  },
+  "devDependencies": {
+    "miniflare": "4.20260730.0",
+    "vitest": "4.1.9"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

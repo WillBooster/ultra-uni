@@ -1,0 +1,8 @@
+#!/bin/sh
+# cc-rs passes an LLVM triple (--target=wasm32-unknown-unknown) that zig cannot parse; replace it
+# with zig's equivalent freestanding wasm target.
+for arg; do
+  shift
+  case "$arg" in --target=*) ;; *) set -- "$@" "$arg" ;; esac
+done
+exec zig cc -target wasm32-freestanding "$@"
