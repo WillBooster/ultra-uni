@@ -268,7 +268,7 @@ f x = if x > 0 && x < 10 then 1 else if x < 0 then 2 else 3
   });
 });
 
-// Complexity metrics are left undefined, so JSON drops them.
+// Complexity metrics are omitted.
 test.each([
   {
     language: 'css',

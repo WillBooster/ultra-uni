@@ -17,11 +17,11 @@ export type Language =
 
 export interface Metrics {
   lines: { total: number; code: number; comment: number; blank: number };
-  /** `undefined` for languages without functions or control flow (CSS, HTML, JSP, and text). */
-  functionCount: number | undefined;
-  cyclomaticComplexity: number | undefined;
-  cognitiveComplexity: number | undefined;
-  maxNestingDepth: number | undefined;
+  /** The complexity metrics are omitted for languages without functions or control flow (CSS, HTML, JSP, and text). */
+  functionCount?: number;
+  cyclomaticComplexity?: number;
+  cognitiveComplexity?: number;
+  maxNestingDepth?: number;
 }
 
 export interface Position {
@@ -102,6 +102,13 @@ fn parse(language: &str, source: &str) -> Result<(LanguageSpec, Option<Tree>), J
     Ok((spec, Some(tree)))
 }
 
+// Binds `JSON.parse` directly instead of via js-sys to keep the dependency tree small.
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = JSON, js_name = parse)]
+    fn parse_json(json: &str) -> JsValue;
+}
+
 fn to_js(value: &impl Serialize) -> Result<JsValue, JsError> {
-    Ok(serde_wasm_bindgen::to_value(value)?)
+    Ok(parse_json(&serde_json::to_string(value)?))
 }

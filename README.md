@@ -40,7 +40,7 @@ Supported languages (`supportedLanguages()`): `c`, `cpp`, `csharp`, `css`, `dart
 - `cognitiveComplexity`: a simplified SonarSource cognitive complexity: 1 plus the nesting level per conditional, loop, handler, and switch; 1 per `else` or chained branch (`elif`, `elsif`, `elseif`); and 1 per sequence of the same logical operator.
 - `maxNestingDepth`: the deepest nesting of conditionals, loops, handlers, and switches.
 
-CSS, HTML, JSP, and text have no functions or control flow, so their complexity metrics are `undefined`.
+CSS, HTML, JSP, and text have no functions or control flow, so their complexity metrics are omitted (`undefined`).
 
 ### Linting and formatting
 

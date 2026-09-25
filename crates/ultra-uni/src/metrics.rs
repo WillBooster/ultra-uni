@@ -7,9 +7,13 @@ use crate::language::Profile;
 #[serde(rename_all = "camelCase")]
 pub struct Metrics {
     pub lines: LineMetrics,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub function_count: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cyclomatic_complexity: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cognitive_complexity: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub max_nesting_depth: Option<u32>,
 }
 
