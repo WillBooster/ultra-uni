@@ -191,7 +191,7 @@ impl ComplexityCounter<'_> {
 
 impl<'a> ComplexityCounter<'a> {
     /// Returns the operator of a binary logical expression, excluding the same token used
-    /// otherwise, such as C++'s rvalue reference `T&&`.
+    /// otherwise, such as C++'s rvalue reference `T&&` and Haskell's operator section `(&&)`.
     fn logical_operator(&self, node: Node) -> Option<&'a str> {
         let text = if !node.is_named() {
             node.kind()
@@ -205,7 +205,8 @@ impl<'a> ComplexityCounter<'a> {
             .logical_operators
             .iter()
             .find(|&&op| op == text)?;
-        (node.prev_sibling().is_some() && node.next_sibling().is_some()).then_some(*operator)
+        let is_operand = |sibling: Option<Node>| sibling.is_some_and(|sibling| sibling.is_named());
+        (is_operand(node.prev_sibling()) && is_operand(node.next_sibling())).then_some(*operator)
     }
 
     /// Whether an operand is a binary expression with the same operator, as in `a && b && c`.
@@ -243,8 +244,16 @@ fn follows_else(node: Node) -> bool {
 /// Excludes `else` tokens that do not open a branch of their own: the fallback arm of a switch
 /// and the second operand of a conditional expression such as Python's `a if c else b`.
 fn is_else_branch(token: Node, profile: &Profile) -> bool {
-    token.parent().is_none_or(|parent| {
-        !profile.cases.contains(&parent.kind()) && parent.kind() != "conditional_expression"
+    let mut owner = token.parent();
+    // Ruby wraps the `else` keyword and its body in an `else` node.
+    if let Some(parent) = owner.filter(|parent| parent.kind() == "else") {
+        owner = parent.parent();
+    }
+    owner.is_none_or(|owner| {
+        let kind = owner.kind();
+        !profile.cases.contains(&kind)
+            && !profile.switches.contains(&kind)
+            && kind != "conditional_expression"
     })
 }
 
