@@ -376,6 +376,11 @@ test('counts columns in UTF-16 code units', async () => {
   });
 });
 
+test('formats trailing whitespace in HTML script bodies', async () => {
+  const { body } = await call('format', 'html', '<script>\nvar x = 1;   \n</script>\n');
+  expect(body).toEqual({ result: '<script>\nvar x = 1;\n</script>\n' });
+});
+
 test('keeps trailing whitespace that ends a multi-line literal', async () => {
   const source = 'const a =\n    \\\\hello  \n    \\\\world  \n;\n';
   const { body } = await call('format', 'zig', source);

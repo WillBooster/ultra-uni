@@ -49,7 +49,7 @@ fn collect_multiline_literals(node: Node, literals: &mut Vec<Range<usize>>) {
         return;
     }
     let kind = node.kind();
-    let is_literal = ["string", "heredoc", "nowdoc", "raw", "text_block"]
+    let is_literal = ["string", "heredoc", "nowdoc"]
         .iter()
         .any(|keyword| kind.contains(keyword));
     if is_literal {
