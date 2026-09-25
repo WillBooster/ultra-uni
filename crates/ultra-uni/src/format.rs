@@ -35,7 +35,7 @@ pub fn trailing_whitespace(source: &str, tree: Option<&Tree>) -> Vec<Range<usize
         let start = line_start + content.trim_end_matches([' ', '\t', '\r']).len();
         let in_literal = literals
             .iter()
-            .any(|literal| literal.start < end && end < literal.end);
+            .any(|literal| literal.start <= start && end <= literal.end);
         if start < end && !in_literal {
             ranges.push(start..end);
         }

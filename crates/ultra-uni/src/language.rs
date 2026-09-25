@@ -26,8 +26,8 @@ pub const LANGUAGE_IDS: &[&str] = &[
 /// Node kinds that drive complexity metrics; each list names kinds of the language's grammar.
 pub struct Profile {
     pub functions: &'static [&'static str],
-    /// Function kinds that only declare a signature when their `body` field is absent, such as
-    /// abstract methods and auto-property accessors.
+    /// Function kinds that only declare a signature when they lack a body (a `body` field or a
+    /// `function_body` child), such as abstract methods and auto-property accessors.
     pub optional_body_functions: &'static [&'static str],
     /// Conditionals, loops, and handlers: they add a path and nest the code inside them.
     pub branches: &'static [&'static str],
@@ -37,6 +37,9 @@ pub struct Profile {
     pub switches: &'static [&'static str],
     pub cases: &'static [&'static str],
     pub logical_operators: &'static [&'static str],
+    /// The named kind whose text is the operator, for grammars that do not give each operator a
+    /// token kind of its own.
+    pub operator_node: Option<&'static str>,
 }
 
 pub struct LanguageSpec {
@@ -98,6 +101,7 @@ const C: Profile = Profile {
     switches: &["switch_statement"],
     cases: &["case_statement"],
     logical_operators: C_LIKE_LOGICAL_OPERATORS,
+    operator_node: None,
 };
 
 const CPP: Profile = Profile {
@@ -116,6 +120,7 @@ const CPP: Profile = Profile {
     switches: &["switch_statement"],
     cases: &["case_statement"],
     logical_operators: &["&&", "||", "and", "or"],
+    operator_node: None,
 };
 
 const CSHARP: Profile = Profile {
@@ -150,6 +155,7 @@ const CSHARP: Profile = Profile {
     switches: &["switch_statement", "switch_expression"],
     cases: &["switch_section", "switch_expression_arm"],
     logical_operators: &["&&", "||", "??"],
+    operator_node: None,
 };
 
 const DART: Profile = Profile {
@@ -169,6 +175,7 @@ const DART: Profile = Profile {
     switches: &["switch_statement", "switch_expression"],
     cases: &["switch_statement_case", "switch_expression_case"],
     logical_operators: &["&&", "||", "??"],
+    operator_node: None,
 };
 
 const HASKELL: Profile = Profile {
@@ -178,7 +185,8 @@ const HASKELL: Profile = Profile {
     chained_branches: &[],
     switches: &["case", "multi_way_if"],
     cases: &["alternative", "guards"],
-    logical_operators: &[],
+    logical_operators: C_LIKE_LOGICAL_OPERATORS,
+    operator_node: Some("operator"),
 };
 
 const JAVA: Profile = Profile {
@@ -202,6 +210,7 @@ const JAVA: Profile = Profile {
     switches: &["switch_expression"],
     cases: &["switch_label"],
     logical_operators: C_LIKE_LOGICAL_OPERATORS,
+    operator_node: None,
 };
 
 /// Shared by JavaScript, TypeScript, and TSX, whose grammars use the same node kinds.
@@ -228,6 +237,7 @@ const JAVASCRIPT: Profile = Profile {
     switches: &["switch_statement"],
     cases: &["switch_case"],
     logical_operators: &["&&", "||", "??"],
+    operator_node: None,
 };
 
 const KOTLIN: Profile = Profile {
@@ -239,7 +249,7 @@ const KOTLIN: Profile = Profile {
         "getter",
         "setter",
     ],
-    optional_body_functions: &[],
+    optional_body_functions: &["function_declaration", "getter", "setter"],
     branches: &[
         "if_expression",
         "for_statement",
@@ -251,6 +261,7 @@ const KOTLIN: Profile = Profile {
     switches: &["when_expression"],
     cases: &["when_entry"],
     logical_operators: C_LIKE_LOGICAL_OPERATORS,
+    operator_node: None,
 };
 
 const PHP: Profile = Profile {
@@ -274,6 +285,7 @@ const PHP: Profile = Profile {
     switches: &["switch_statement", "match_expression"],
     cases: &["case_statement", "match_conditional_expression"],
     logical_operators: &["&&", "||", "and", "or", "??"],
+    operator_node: None,
 };
 
 const PYTHON: Profile = Profile {
@@ -290,6 +302,7 @@ const PYTHON: Profile = Profile {
     switches: &["match_statement"],
     cases: &["case_clause"],
     logical_operators: &["and", "or"],
+    operator_node: None,
 };
 
 const RUBY: Profile = Profile {
@@ -314,6 +327,7 @@ const RUBY: Profile = Profile {
     switches: &["case", "case_match"],
     cases: &["when", "in_clause"],
     logical_operators: &["&&", "||", "and", "or"],
+    operator_node: None,
 };
 
 const RUST: Profile = Profile {
@@ -329,6 +343,7 @@ const RUST: Profile = Profile {
     switches: &["match_expression"],
     cases: &["match_arm"],
     logical_operators: C_LIKE_LOGICAL_OPERATORS,
+    operator_node: None,
 };
 
 const ZIG: Profile = Profile {
@@ -347,6 +362,7 @@ const ZIG: Profile = Profile {
     switches: &["switch_expression"],
     cases: &["switch_case"],
     logical_operators: &["and", "or"],
+    operator_node: None,
 };
 
 #[cfg(test)]
@@ -372,8 +388,13 @@ mod tests {
             for kind in named_kinds.concat() {
                 assert_ne!(grammar.id_for_node_kind(kind, true), 0, "{id}: {kind}");
             }
-            for kind in profile.logical_operators {
-                assert_ne!(grammar.id_for_node_kind(kind, false), 0, "{id}: {kind}");
+            match profile.operator_node {
+                Some(kind) => assert_ne!(grammar.id_for_node_kind(kind, true), 0, "{id}: {kind}"),
+                None => {
+                    for kind in profile.logical_operators {
+                        assert_ne!(grammar.id_for_node_kind(kind, false), 0, "{id}: {kind}");
+                    }
+                }
             }
         }
     }

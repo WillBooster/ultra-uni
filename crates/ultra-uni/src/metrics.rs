@@ -144,19 +144,18 @@ impl ComplexityCounter<'_> {
         let kind = node.kind();
         let profile = self.profile;
         let mut inner = nesting;
-        if !node.is_named() {
-            if profile.logical_operators.contains(&kind) && is_binary_operator(node) {
-                self.cyclomatic += 1;
-                if !continues_logical_sequence(node) {
-                    self.cognitive += 1;
-                }
-            } else if kind == "else" && is_else_branch(node, profile) {
+        if let Some(operator) = self.logical_operator(node) {
+            self.cyclomatic += 1;
+            if !self.continues_logical_sequence(node, operator) {
+                self.cognitive += 1;
+            }
+        } else if !node.is_named() {
+            if kind == "else" && is_else_branch(node, profile) {
                 self.cognitive += 1;
             }
         } else if profile.functions.contains(&kind)
             && !is_function_type(node)
-            && !(profile.optional_body_functions.contains(&kind)
-                && node.child_by_field_name("body").is_none())
+            && !(profile.optional_body_functions.contains(&kind) && !has_body(node))
         {
             self.function_count += 1;
             self.cyclomatic += 1;
@@ -190,20 +189,45 @@ impl ComplexityCounter<'_> {
     }
 }
 
-/// Excludes the same token used otherwise, such as C++'s rvalue reference `T&&`.
-fn is_binary_operator(operator: Node) -> bool {
-    operator.prev_sibling().is_some() && operator.next_sibling().is_some()
+impl<'a> ComplexityCounter<'a> {
+    /// Returns the operator of a binary logical expression, excluding the same token used
+    /// otherwise, such as C++'s rvalue reference `T&&`.
+    fn logical_operator(&self, node: Node) -> Option<&'a str> {
+        let text = if !node.is_named() {
+            node.kind()
+        } else if Some(node.kind()) == self.profile.operator_node {
+            &self.source[node.byte_range()]
+        } else {
+            return None;
+        };
+        let operator = self
+            .profile
+            .logical_operators
+            .iter()
+            .find(|&&op| op == text)?;
+        (node.prev_sibling().is_some() && node.next_sibling().is_some()).then_some(*operator)
+    }
+
+    /// Whether an operand is a binary expression with the same operator, as in `a && b && c`.
+    fn continues_logical_sequence(&self, node: Node, operator: &str) -> bool {
+        [node.prev_sibling(), node.next_sibling()]
+            .into_iter()
+            .flatten()
+            .any(|operand| {
+                let mut cursor = operand.walk();
+                operand
+                    .children(&mut cursor)
+                    .any(|child| self.logical_operator(child) == Some(operator))
+            })
+    }
 }
 
-/// Whether the operator's left operand is a binary expression with the same operator, as in
-/// `a && b && c`.
-fn continues_logical_sequence(operator: Node) -> bool {
-    let Some(left) = operator.prev_sibling() else {
-        return false;
-    };
-    let mut cursor = left.walk();
-    left.children(&mut cursor)
-        .any(|child| !child.is_named() && child.kind() == operator.kind())
+fn has_body(node: Node) -> bool {
+    let mut cursor = node.walk();
+    node.child_by_field_name("body").is_some()
+        || node
+            .children(&mut cursor)
+            .any(|child| child.kind() == "function_body")
 }
 
 /// Haskell's grammar names function types `function` as well as function declarations.

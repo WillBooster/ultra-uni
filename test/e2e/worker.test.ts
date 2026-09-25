@@ -261,8 +261,8 @@ f x = if x > 0 && x < 10 then 1 else if x < 0 then 2 else 3
     result: {
       lines: { total: 3, code: 2, comment: 1, blank: 0 },
       functionCount: 1,
-      cyclomaticComplexity: 4,
-      cognitiveComplexity: 3,
+      cyclomaticComplexity: 5,
+      cognitiveComplexity: 4,
       maxNestingDepth: 1,
     },
   });
@@ -287,6 +287,12 @@ test.each([
   {
     language: 'csharp',
     source: 'abstract class A { public int X { get; set; } abstract int G(); }\n',
+    functionCount: 0,
+    cyclomaticComplexity: 1,
+  },
+  {
+    language: 'kotlin',
+    source: 'interface A {\n  fun g(): Int\n}\n',
     functionCount: 0,
     cyclomaticComplexity: 1,
   },
@@ -368,6 +374,12 @@ test('counts columns in UTF-16 code units', async () => {
       },
     ],
   });
+});
+
+test('keeps trailing whitespace that ends a multi-line literal', async () => {
+  const source = 'const a =\n    \\\\hello  \n    \\\\world  \n;\n';
+  const { body } = await call('format', 'zig', source);
+  expect(body).toEqual({ result: source });
 });
 
 test('formats trailing whitespace and blank lines, keeping them inside literals', async () => {
