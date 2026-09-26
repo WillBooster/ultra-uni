@@ -396,46 +396,40 @@ f x = if x > 0 && x < 10 then 1 else if x < 0 then 2 else 3
   });
 });
 
+// Only the non-wildcard arm adds a path besides the file and the function.
 test.each([
-  {
-    language: 'rust',
-    source: 'fn f(x: i32) -> i32 { match x { 1 => 1, _ => 0 } }\n',
-    functionCount: 1,
-    cyclomaticComplexity: 3,
-  },
+  { language: 'rust', source: 'fn f(x: i32) -> i32 { match x { 1 => 1, _ => 0 } }\n' },
   {
     language: 'python',
     source: 'def f(x):\n    match x:\n        case 1:\n            pass\n        case _:\n            pass\n',
-    functionCount: 1,
-    cyclomaticComplexity: 3,
   },
-  { language: 'haskell', source: 'f x = case x of\n  1 -> 1\n  _ -> 0\n', functionCount: 1, cyclomaticComplexity: 3 },
-  { language: 'ruby', source: 'f = ->(x) { x }\n', functionCount: 1, cyclomaticComplexity: 2 },
+  { language: 'haskell', source: 'f x = case x of\n  1 -> 1\n  _ -> 0\n' },
+])('does not count a wildcard case as a path in $language', async ({ language, source }) => {
+  const { body } = await call('measure', language, source);
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 3 } });
+});
+
+test('counts a Ruby lambda once through its block', async () => {
+  const { body } = await call('measure', 'ruby', 'f = ->(x) { x }\n');
+  expect(body).toMatchObject({ result: { functionCount: 1, cyclomaticComplexity: 2 } });
+});
+
+test.each([
   {
+    construct: 'C# auto-property and abstract method',
     language: 'csharp',
     source: 'abstract class A { public int X { get; set; } abstract int G(); }\n',
-    functionCount: 0,
-    cyclomaticComplexity: 1,
   },
   {
+    construct: 'PHP interface property hook',
     language: 'php',
     source: '<?php interface I { public int $x { get; } }\n',
-    functionCount: 0,
-    cyclomaticComplexity: 1,
   },
-  {
-    language: 'kotlin',
-    source: 'interface A {\n  fun g(): Int\n}\n',
-    functionCount: 0,
-    cyclomaticComplexity: 1,
-  },
-])(
-  'counts neither wildcard cases nor bodiless or duplicate functions in $language',
-  async ({ cyclomaticComplexity, functionCount, language, source }) => {
-    const { body } = await call('measure', language, source);
-    expect(body).toMatchObject({ result: { cyclomaticComplexity, functionCount } });
-  }
-);
+  { construct: 'Kotlin interface function', language: 'kotlin', source: 'interface A {\n  fun g(): Int\n}\n' },
+])('does not count a bodiless $construct as a function', async ({ language, source }) => {
+  const { body } = await call('measure', language, source);
+  expect(body).toMatchObject({ result: { functionCount: 0, cyclomaticComplexity: 1 } });
+});
 
 // Complexity metrics are omitted.
 test.each([
