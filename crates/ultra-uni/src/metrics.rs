@@ -259,6 +259,11 @@ impl<'a> ComplexityCounter<'a> {
     /// adjacent operand contains it (nested chains) or an earlier sibling is it (flat chains such as
     /// Dart's `??`).
     fn continues_logical_sequence(&self, node: Node, operator: &str) -> bool {
+        // Operators chained in source order are ordered by the spine alone; the operand test would
+        // also mark the chain's first operator as a continuation.
+        if self.profile.operator_node.is_some() {
+            return self.follows_same_operator_in_spine(node, operator);
+        }
         let in_operand = [prev_code_sibling(node), next_code_sibling(node)]
             .into_iter()
             .flatten()
@@ -270,16 +275,13 @@ impl<'a> ComplexityCounter<'a> {
             });
         let earlier_in_chain = std::iter::successors(node.prev_sibling(), Node::prev_sibling)
             .any(|sibling| self.logical_operator(sibling) == Some(operator));
-        in_operand || earlier_in_chain || self.follows_same_operator_in_spine(node, operator)
+        in_operand || earlier_in_chain
     }
 
     /// Whether the nearest logical operator up the right-operand spine is the same operator, for
     /// grammars that chain operators in source order without precedence (Haskell parses
     /// `a > 0 && b > 0` as `a > (0 && b > 0)`).
     fn follows_same_operator_in_spine(&self, node: Node, operator: &str) -> bool {
-        if self.profile.operator_node.is_none() {
-            return false;
-        }
         let mut current = node.parent();
         while let Some(expression) = current {
             let Some(parent) = expression
