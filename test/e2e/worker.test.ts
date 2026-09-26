@@ -346,6 +346,11 @@ test.each([
   expect(body).toMatchObject({ result: { cognitiveComplexity: 4, maxNestingDepth: 2 } });
 });
 
+test('counts the equations of one Haskell definition as one function', async () => {
+  const { body } = await call('measure', 'haskell', 'f 0 = 1\nf n = n\n\ng x = x\n');
+  expect(body).toMatchObject({ result: { functionCount: 2, cyclomaticComplexity: 3 } });
+});
+
 test('scores each non-default Haskell guard clause as a guard', async () => {
   const { body } = await call('measure', 'haskell', 'f x\n  | x > 0 = 1\n  | x > 1 = 2\n  | otherwise = 3\n');
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 4, cognitiveComplexity: 2 } });
@@ -550,6 +555,11 @@ test('counts columns in UTF-16 code units', async () => {
       },
     ],
   });
+});
+
+test('trims whitespace after a self-closing HTML pre', async () => {
+  const { body } = await call('format', 'html', '<pre/>  \n\n');
+  expect(body).toEqual({ result: '<pre/>\n' });
 });
 
 test('trims line-end whitespace inside multi-line HTML text', async () => {

@@ -169,8 +169,10 @@ impl ComplexityCounter<'_> {
             && !is_function_type(node)
             && !(profile.optional_body_functions.contains(&kind) && !has_body(node))
         {
-            self.function_count += 1;
-            self.cyclomatic += 1;
+            if !continues_definition(node, self.source) {
+                self.function_count += 1;
+                self.cyclomatic += 1;
+            }
             if nesting.function > 0 {
                 inner.cognitive += 1;
             }
@@ -320,6 +322,18 @@ fn has_body(node: Node) -> bool {
         || node
             .children(&mut cursor)
             .any(|child| child.kind() == "function_body")
+}
+
+/// Whether the node is a further equation of the definition before it, as Haskell writes one
+/// function as several equations with the same name.
+fn continues_definition(node: Node, source: &str) -> bool {
+    let name = |node: Node| {
+        node.child_by_field_name("name")
+            .map(|name| &source[name.byte_range()])
+    };
+    node.prev_named_sibling().is_some_and(|previous| {
+        previous.kind() == node.kind() && name(previous).is_some() && name(previous) == name(node)
+    })
 }
 
 /// Haskell's grammar names function types `function` as well as function declarations.

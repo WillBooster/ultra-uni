@@ -135,7 +135,7 @@ fn collect_value_ranges(source: &str, root: Node, ranges: &mut Vec<Range<usize>>
         if kind == "element"
             && !node
                 .children(&mut cursor)
-                .any(|child| child.kind() == "end_tag")
+                .any(|child| matches!(child.kind(), "end_tag" | "self_closing_tag"))
         {
             range.end += leading_whitespace(&source[range.end..]);
         }
