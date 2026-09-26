@@ -185,6 +185,11 @@ impl ComplexityCounter<'_> {
         } else if profile.cases.contains(&kind) {
             if !is_default_case(node, self.source, profile) {
                 self.cyclomatic += 1;
+                // Haskell's `guards` clause is itself a guard.
+                let guard = node.child_by_field_name("guard");
+                if guard.is_some() && guard == node.named_child(0) {
+                    self.cognitive += 1;
+                }
             }
             if has_bare_guard(node) {
                 self.cyclomatic += 1;

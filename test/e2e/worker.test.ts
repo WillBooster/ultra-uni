@@ -320,6 +320,11 @@ test.each([
   expect(body).toMatchObject({ result: { functionCount: 1, cyclomaticComplexity: 2 } });
 });
 
+test('scores each non-default Haskell guard clause as a guard', async () => {
+  const { body } = await call('measure', 'haskell', 'f x\n  | x > 0 = 1\n  | x > 1 = 2\n  | otherwise = 3\n');
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 4, cognitiveComplexity: 2 } });
+});
+
 test('does not score a Haskell operator section as a logical operator', async () => {
   const { body } = await call('measure', 'haskell', 'f = foldr (&&) True\n');
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 1, cognitiveComplexity: 0 } });
