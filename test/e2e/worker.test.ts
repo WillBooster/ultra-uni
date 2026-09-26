@@ -548,6 +548,11 @@ test.each([
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 1 } });
 });
 
+test('does not score a Dart or-pattern in a declaration pattern as a logical operator', async () => {
+  const { body } = await call('measure', 'dart', 'void f(int x) {\n  var (int y || int y) = x;\n}\n');
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 2, cognitiveComplexity: 0 } });
+});
+
 test('does not count a C# discard case as a path when a comment precedes its pattern', async () => {
   const { body } = await call(
     'measure',

@@ -250,17 +250,20 @@ impl<'a> ComplexityCounter<'a> {
                 && parent.child_by_field_name("right").is_some()
         });
         let is_operand = |sibling: Option<Node>| sibling.is_some_and(|sibling| sibling.is_named());
-        // A pattern node or a control structure never holds a binary operator directly; such a
-        // token joins patterns, as Dart's `case 1 || 2` and `case [1 || 2]` do, and the case scores
-        // its own path.
-        let in_pattern = node.parent().is_some_and(|parent| {
-            let kind = parent.kind();
-            let profile = self.profile;
-            kind.ends_with("pattern")
-                || profile.cases.contains(&kind)
-                || profile.branches.contains(&kind)
-                || profile.switches.contains(&kind)
-        });
+        // A token between patterns, or directly under a pattern node or a control structure, joins
+        // patterns, as Dart's `case 1 || 2`, `case [1 || 2]`, and `var (int y || int y) = x` do.
+        let is_pattern =
+            |node: Option<Node>| node.is_some_and(|node| node.kind().ends_with("pattern"));
+        let in_pattern = is_pattern(prev_code_sibling(node))
+            || is_pattern(next_code_sibling(node))
+            || node.parent().is_some_and(|parent| {
+                let kind = parent.kind();
+                let profile = self.profile;
+                kind.ends_with("pattern")
+                    || profile.cases.contains(&kind)
+                    || profile.branches.contains(&kind)
+                    || profile.switches.contains(&kind)
+            });
         (is_binary_operator
             || !in_pattern
                 && is_operand(prev_code_sibling(node))
