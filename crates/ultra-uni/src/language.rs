@@ -40,6 +40,9 @@ pub struct Profile {
     /// Multi-way branches, whose paths are counted by their `cases` instead.
     pub switches: &'static [&'static str],
     pub cases: &'static [&'static str],
+    /// Case kinds whose label is a pattern, where `_` (or Haskell's `otherwise` guard) is a
+    /// wildcard; elsewhere a `_` label is an ordinary name.
+    pub wildcard_cases: &'static [&'static str],
     pub logical_operators: &'static [&'static str],
     /// The named kind whose text is the operator, for grammars that do not give each operator a
     /// token kind of its own.
@@ -105,6 +108,7 @@ const C: Profile = Profile {
     alternative_branches: &[],
     switches: &["switch_statement"],
     cases: &["case_statement"],
+    wildcard_cases: &[],
     logical_operators: C_LIKE_LOGICAL_OPERATORS,
     operator_node: None,
 };
@@ -125,6 +129,7 @@ const CPP: Profile = Profile {
     alternative_branches: &[],
     switches: &["switch_statement"],
     cases: &["case_statement"],
+    wildcard_cases: &[],
     logical_operators: &["&&", "||", "and", "or"],
     operator_node: None,
 };
@@ -169,6 +174,7 @@ const CSHARP: Profile = Profile {
     alternative_branches: &[],
     switches: &["switch_statement", "switch_expression"],
     cases: &["switch_section", "switch_expression_arm"],
+    wildcard_cases: &["switch_section", "switch_expression_arm"],
     logical_operators: &["&&", "||", "??"],
     operator_node: None,
 };
@@ -190,6 +196,7 @@ const DART: Profile = Profile {
     alternative_branches: &[],
     switches: &["switch_statement", "switch_expression"],
     cases: &["switch_statement_case", "switch_expression_case"],
+    wildcard_cases: &["switch_statement_case", "switch_expression_case"],
     logical_operators: &["&&", "||", "??"],
     operator_node: None,
 };
@@ -202,6 +209,7 @@ const HASKELL: Profile = Profile {
     alternative_branches: &[],
     switches: &["case", "multi_way_if"],
     cases: &["alternative", "guards"],
+    wildcard_cases: &["alternative", "guards"],
     logical_operators: C_LIKE_LOGICAL_OPERATORS,
     operator_node: Some("operator"),
 };
@@ -227,6 +235,7 @@ const JAVA: Profile = Profile {
     alternative_branches: &[],
     switches: &["switch_expression"],
     cases: &["switch_label"],
+    wildcard_cases: &["switch_label"],
     logical_operators: C_LIKE_LOGICAL_OPERATORS,
     operator_node: None,
 };
@@ -255,6 +264,7 @@ const JAVASCRIPT: Profile = Profile {
     alternative_branches: &[],
     switches: &["switch_statement"],
     cases: &["switch_case"],
+    wildcard_cases: &[],
     logical_operators: &["&&", "||", "??"],
     operator_node: None,
 };
@@ -280,6 +290,7 @@ const KOTLIN: Profile = Profile {
     alternative_branches: &[],
     switches: &["when_expression"],
     cases: &["when_entry"],
+    wildcard_cases: &[],
     logical_operators: &["&&", "||", "?:"],
     operator_node: None,
 };
@@ -306,6 +317,7 @@ const PHP: Profile = Profile {
     alternative_branches: &[],
     switches: &["switch_statement", "match_expression"],
     cases: &["case_statement", "match_conditional_expression"],
+    wildcard_cases: &[],
     logical_operators: &["&&", "||", "and", "or", "xor", "??"],
     operator_node: None,
 };
@@ -326,6 +338,7 @@ const PYTHON: Profile = Profile {
     alternative_branches: &[],
     switches: &["match_statement"],
     cases: &["case_clause"],
+    wildcard_cases: &["case_clause"],
     logical_operators: &["and", "or"],
     operator_node: None,
 };
@@ -352,6 +365,7 @@ const RUBY: Profile = Profile {
     alternative_branches: &[],
     switches: &["case", "case_match"],
     cases: &["when", "in_clause"],
+    wildcard_cases: &["in_clause"],
     logical_operators: &["&&", "||", "and", "or"],
     operator_node: None,
 };
@@ -369,6 +383,7 @@ const RUST: Profile = Profile {
     alternative_branches: &["let_declaration"],
     switches: &["match_expression"],
     cases: &["match_arm"],
+    wildcard_cases: &["match_arm"],
     logical_operators: C_LIKE_LOGICAL_OPERATORS,
     operator_node: None,
 };
@@ -389,6 +404,7 @@ const ZIG: Profile = Profile {
     alternative_branches: &[],
     switches: &["switch_expression"],
     cases: &["switch_case"],
+    wildcard_cases: &["switch_case"],
     logical_operators: &["and", "or", "orelse"],
     operator_node: None,
 };
@@ -413,6 +429,7 @@ mod tests {
                 profile.alternative_branches,
                 profile.switches,
                 profile.cases,
+                profile.wildcard_cases,
             ];
             for kind in named_kinds.concat() {
                 assert_ne!(grammar.id_for_node_kind(kind, true), 0, "{id}: {kind}");

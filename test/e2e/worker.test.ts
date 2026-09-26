@@ -409,6 +409,11 @@ test.each([
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 3 } });
 });
 
+test('counts a JavaScript case labeled with the identifier _ as a path', async () => {
+  const { body } = await call('measure', 'javascript', 'switch (x) {\n  case _:\n    f();\n}\n');
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 2 } });
+});
+
 test('counts a Ruby lambda once through its block', async () => {
   const { body } = await call('measure', 'ruby', 'f = ->(x) { x }\n');
   expect(body).toMatchObject({ result: { functionCount: 1, cyclomaticComplexity: 2 } });

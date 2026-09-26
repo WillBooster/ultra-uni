@@ -318,7 +318,7 @@ fn is_else_branch(token: Node, profile: &Profile) -> bool {
 }
 
 /// A default case is marked by a `default` or `else` keyword, or has the wildcard `_` (or Haskell's
-/// `otherwise` guard) as its entire pattern, and carries no guard.
+/// `otherwise` guard) as its entire pattern where the label is a pattern, and carries no guard.
 fn is_default_case(node: Node, source: &str, profile: &Profile) -> bool {
     let mut cursor = node.walk();
     let has_default_keyword = node
@@ -327,8 +327,9 @@ fn is_default_case(node: Node, source: &str, profile: &Profile) -> bool {
     let pattern = node
         .child_by_field_name("pattern")
         .or_else(|| node.named_child(0));
-    let is_catch_all =
-        pattern.is_some_and(|pattern| matches!(&source[pattern.byte_range()], "_" | "otherwise"));
+    let is_catch_all = profile.wildcard_cases.contains(&node.kind())
+        && pattern
+            .is_some_and(|pattern| matches!(&source[pattern.byte_range()], "_" | "otherwise"));
     // Haskell's `guards` names its own condition `guard`; that condition is the pattern here.
     let has_guard = node
         .child_by_field_name("guard")
