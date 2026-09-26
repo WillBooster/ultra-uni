@@ -338,6 +338,14 @@ test.each([
   expect(body).toMatchObject({ result: { functionCount: 1, cyclomaticComplexity: 2 } });
 });
 
+test.each([
+  { construct: 'case expression', source: 'f x = case x of\n  1 -> if a then b else c\n  _ -> d\n' },
+  { construct: 'lambda-case expression', source: 'f = \\case\n  1 -> if a then b else c\n  _ -> d\n' },
+])('scores a Haskell $construct as a switch', async ({ source }) => {
+  const { body } = await call('measure', 'haskell', source);
+  expect(body).toMatchObject({ result: { cognitiveComplexity: 4, maxNestingDepth: 2 } });
+});
+
 test('scores each non-default Haskell guard clause as a guard', async () => {
   const { body } = await call('measure', 'haskell', 'f x\n  | x > 0 = 1\n  | x > 1 = 2\n  | otherwise = 3\n');
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 4, cognitiveComplexity: 2 } });

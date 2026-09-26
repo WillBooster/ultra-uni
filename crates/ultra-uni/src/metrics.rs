@@ -175,6 +175,12 @@ impl ComplexityCounter<'_> {
                 inner.cognitive += 1;
             }
             inner.function += 1;
+            // Haskell's `\case` is a function whose body is a switch.
+            if profile.switches.contains(&kind) {
+                self.cognitive += 1 + u64::from(inner.cognitive);
+                inner.cognitive += 1;
+                inner.control += 1;
+            }
         } else if profile.chained_branches.contains(&kind)
             || (profile.branches.contains(&kind) && is_guard(node))
         {

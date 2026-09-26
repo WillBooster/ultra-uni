@@ -206,7 +206,7 @@ const HASKELL: Profile = Profile {
     branches: &["conditional", "generator"],
     chained_branches: &[],
     alternative_branches: &[],
-    switches: &["case", "multi_way_if"],
+    switches: &["case", "multi_way_if", "lambda_case", "lambda_cases"],
     cases: &["alternative", "guards"],
     wildcard_cases: &["alternative", "guards"],
     logical_operators: C_LIKE_LOGICAL_OPERATORS,
