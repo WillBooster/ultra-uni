@@ -577,6 +577,7 @@ test.each([
   { construct: 'PHP template text at the end of the file', language: 'php', source: '<?php echo 1; ?>\n<pre>x  ' },
   { construct: 'PHP template whitespace after a closing tag', language: 'php', source: '<?php echo 1; ?>\t\ny\n' },
   { construct: 'PHP template whitespace before the opening tag', language: 'php', source: '  \n<?php echo 1; ?>\n' },
+  { construct: 'PHP file of template text only', language: 'php', source: '   \n<p>x  \n' },
   { construct: 'JSP template text at the end of the file', language: 'jsp', source: '<% int a = 1; %>\n<pre>x  ' },
 ])('keeps whitespace inside a $construct', async ({ language, source }) => {
   expect(await call('lint', language, source)).toEqual({ status: 200, body: { result: [] } });

@@ -6,8 +6,8 @@ use crate::tree::walk;
 
 /// Removes trailing whitespace (including the `\r` of CRLF) and trailing blank lines outside
 /// value regions, and ends non-empty code with a single newline unless it ends inside one.
-pub fn format(source: &str, tree: Option<&Tree>) -> String {
-    let ranges = value_ranges(source, tree);
+pub fn format(language: &str, source: &str, tree: Option<&Tree>) -> String {
+    let ranges = value_ranges(language, source, tree);
     // A value region can reach the end of the file, where the trailing blank run then stops.
     let trimmed_end = source.trim_end_matches(['\n', ' ', '\t', '\r']).len();
     let content_end = trimmed_end.max(ranges.last().map_or(0, |range| range.end));
@@ -32,11 +32,48 @@ pub fn format(source: &str, tree: Option<&Tree>) -> String {
 }
 
 /// Byte ranges of the outermost value regions, in document order and disjoint.
-pub fn value_ranges(source: &str, tree: Option<&Tree>) -> Vec<Range<usize>> {
+pub fn value_ranges(language: &str, source: &str, tree: Option<&Tree>) -> Vec<Range<usize>> {
+    let Some(tree) = tree else {
+        return Vec::new();
+    };
     let mut ranges = Vec::new();
-    if let Some(tree) = tree {
-        collect_value_ranges(source, tree.root_node(), &mut ranges);
+    collect_value_ranges(source, tree.root_node(), &mut ranges);
+    if language == "php" {
+        ranges.extend(php_template_ranges(source, tree.root_node()));
+        ranges.sort_by_key(|range| range.start);
+        let mut merged: Vec<Range<usize>> = Vec::with_capacity(ranges.len());
+        for range in ranges {
+            match merged.last_mut() {
+                Some(last) if range.start <= last.end => last.end = last.end.max(range.end),
+                _ => merged.push(range),
+            }
+        }
+        ranges = merged;
     }
+    ranges
+}
+
+/// Everything outside `<?php ... ?>` is template text that PHP prints, including whitespace the
+/// grammar leaves outside every node.
+fn php_template_ranges(source: &str, root: Node) -> Vec<Range<usize>> {
+    let mut ranges = Vec::new();
+    let mut template_start = Some(0);
+    walk(root, |node, _| {
+        match node.kind() {
+            "php_tag" => {
+                if let Some(start) = template_start.take() {
+                    ranges.push(start..node.start_byte());
+                }
+            }
+            "php_end_tag" => template_start = Some(node.end_byte()),
+            _ => return true,
+        }
+        false
+    });
+    if let Some(start) = template_start {
+        ranges.push(start..source.len());
+    }
+    ranges.retain(|range| !range.is_empty());
     ranges
 }
 
@@ -81,27 +118,10 @@ fn is_concatenation(node: Node) -> bool {
 fn collect_value_ranges(source: &str, root: Node, ranges: &mut Vec<Range<usize>>) {
     walk(root, |node, _| {
         let kind = node.kind();
-        // PHP's grammar leaves the template text's whitespace after `?>` and before the first
-        // `<?php` outside every node.
-        if kind == "php_end_tag" {
-            let end = node.end_byte() + leading_whitespace(&source[node.end_byte()..]);
-            if end > node.end_byte() {
-                ranges.push(node.end_byte()..end);
-            }
-            return false;
-        }
-        if kind == "php_tag"
-            && node.start_byte() > 0
-            && leading_whitespace(source) == node.start_byte()
-        {
-            ranges.push(0..node.start_byte());
-            return false;
-        }
         // Anonymous tokens are keywords and punctuation, such as TypeScript's `string` type.
         let is_value = node.is_named()
             && is_literal_kind(kind)
             && !is_concatenation(node)
-            && !is_html_text(node)
             // An escaped space is a value byte even where no value node encloses it.
             || kind.contains("escape_sequence")
             || is_preformatted_element(source, node);
@@ -128,15 +148,6 @@ fn leading_whitespace(text: &str) -> usize {
     text.bytes().take_while(u8::is_ascii_whitespace).count()
 }
 
-/// HTML text outside `<pre>` and `<textarea>`, whose line-end whitespace is insignificant, unlike
-/// the PHP template text that shares its kind.
-fn is_html_text(node: Node) -> bool {
-    node.kind() == "text"
-        && node
-            .parent()
-            .is_some_and(|parent| matches!(parent.kind(), "element" | "document"))
-}
-
 /// An HTML `<pre>` or `<textarea>` element, whose text keeps its whitespace; the grammar's `text`
 /// nodes exclude the whitespace at their edges.
 fn is_preformatted_element(source: &str, node: Node) -> bool {
@@ -155,10 +166,10 @@ fn is_literal_kind(kind: &str) -> bool {
     ["string", "heredoc", "nowdoc", "quasiquote", "uninterpreted", "regex", "subshell"]
         .iter()
         .any(|keyword| kind.contains(keyword))
-        // Markup text, attribute values, and embedded code in HTML, JSP (embedded-template), and PHP
-        // templates, whose inner literals no grammar models.
+        // HTML raw text and attribute values, and JSP (embedded-template) text and code, whose
+        // inner literals no grammar models.
         || matches!(
             kind,
-            "text" | "raw_text" | "attribute_value" | "quoted_attribute_value" | "code" | "content"
+            "raw_text" | "attribute_value" | "quoted_attribute_value" | "code" | "content"
         )
 }

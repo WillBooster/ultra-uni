@@ -71,7 +71,7 @@ pub fn lint(
     source: &str,
 ) -> Result<JsValue, JsError> {
     let (_, tree) = parse(language, source)?;
-    to_js(&lint::lint(source, tree.as_ref()))
+    to_js(&lint::lint(language, source, tree.as_ref()))
 }
 
 /// Throws on syntax errors, where whitespace may belong to an unterminated literal.
@@ -87,7 +87,7 @@ pub fn format(
     {
         return Err(JsError::new("Cannot format code with syntax errors"));
     }
-    Ok(format::format(source, tree.as_ref()))
+    Ok(format::format(language, source, tree.as_ref()))
 }
 
 fn parse(language: &str, source: &str) -> Result<(LanguageSpec, Option<Tree>), JsError> {

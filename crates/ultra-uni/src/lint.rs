@@ -20,13 +20,13 @@ pub struct Position {
     pub column: u32,
 }
 
-pub fn lint(source: &str, tree: Option<&Tree>) -> Vec<Diagnostic> {
+pub fn lint(language: &str, source: &str, tree: Option<&Tree>) -> Vec<Diagnostic> {
     let lines = LineIndex::new(source);
     let mut diagnostics = Vec::new();
     if let Some(tree) = tree {
         collect_syntax_errors(&lines, tree.root_node(), &mut diagnostics);
     }
-    for mut range in trailing_whitespace(source, &value_ranges(source, tree)) {
+    for mut range in trailing_whitespace(source, &value_ranges(language, source, tree)) {
         // `format` converts CRLF, but a CRLF line ending alone is not trailing whitespace.
         if source[range.clone()].ends_with('\r') {
             range.end -= 1;
