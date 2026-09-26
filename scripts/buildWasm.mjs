@@ -24,7 +24,10 @@ execFileSync('cargo', ['build', '--release', '--target', target, '--package', 'u
     ...process.env,
     AR_wasm32_unknown_unknown: path.join(rootDir, 'scripts', 'zigar'),
     CC_wasm32_unknown_unknown: path.join(rootDir, 'scripts', 'zigcc'),
-    CFLAGS_wasm32_unknown_unknown: `-I${wasmHeadersDir}`,
+    // Those libc headers omit declarations that a full libc's `<wctype.h>` and `<assert.h>` expose
+    // and tree-sitter-cpp's scanner uses: `wchar_t` (from the compiler's `<stddef.h>`) and C11's
+    // `static_assert`.
+    CFLAGS_wasm32_unknown_unknown: `-I${wasmHeadersDir} -include stddef.h -Dstatic_assert=_Static_assert`,
   },
   stdio: 'inherit',
 });
@@ -46,6 +49,7 @@ execFileSync(
 
 // Wrangler turns a `.wasm` import into a compiled WebAssembly.Module, so the entry point
 // instantiates it synchronously at import time.
+const exports = `export { format, lint, measure, supportedLanguages, syntaxTree } from './ultra_uni.js';\n`;
 fs.writeFileSync(
   path.join(distDir, 'index.js'),
   `import wasmModule from './ultra_uni_bg.wasm';
@@ -53,7 +57,9 @@ import { initSync } from './ultra_uni.js';
 
 initSync({ module: wasmModule });
 
-export { syntaxTree } from './ultra_uni.js';
-`
+${exports}`
 );
-fs.writeFileSync(path.join(distDir, 'index.d.ts'), `export { syntaxTree } from './ultra_uni.js';\n`);
+fs.writeFileSync(
+  path.join(distDir, 'index.d.ts'),
+  `${exports}export type { Diagnostic, Language, Metrics, Position } from './ultra_uni.js';\n`
+);

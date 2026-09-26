@@ -17,6 +17,816 @@ afterAll(async () => {
   await miniflare.dispose();
 });
 
+async function call(operation: string, language: string, source: string): Promise<{ status: number; body: unknown }> {
+  const response = await miniflare.dispatchFetch('http://localhost', {
+    body: JSON.stringify({ language, operation, source }),
+    method: 'POST',
+  });
+  return { status: response.status, body: await response.json() };
+}
+
+// The same program in each language: a function whose `if (x > 0 && x < 10)` holds a loop and is
+// followed by `else if` and `else`.
+const equivalentPrograms = {
+  c: `// comment
+int f(int x) {
+  if (x > 0 && x < 10) {
+    for (int i = 0; i < x; i++) {}
+  } else if (x < 0) {
+    return 1;
+  } else {
+    return 2;
+  }
+  return 0;
+}
+`,
+  cpp: `// comment
+int f(int x) {
+  if (x > 0 && x < 10) {
+    for (int i : v) {}
+  } else if (x < 0) {
+    return 1;
+  } else {
+    return 2;
+  }
+  return 0;
+}
+`,
+  csharp: `// comment
+class A {
+  int F(int x) {
+    if (x > 0 && x < 10) {
+      foreach (var i in v) {}
+    } else if (x < 0) {
+      return 1;
+    } else {
+      return 2;
+    }
+    return 0;
+  }
+}
+`,
+  dart: `// comment
+int f(int x) {
+  if (x > 0 && x < 10) {
+    for (var i in v) {}
+  } else if (x < 0) {
+    return 1;
+  } else {
+    return 2;
+  }
+  return 0;
+}
+`,
+  java: `// comment
+class A {
+  int f(int x) {
+    if (x > 0 && x < 10) {
+      for (int i : v) {}
+    } else if (x < 0) {
+      return 1;
+    } else {
+      return 2;
+    }
+    return 0;
+  }
+}
+`,
+  javascript: `// comment
+function f(x) {
+  if (x > 0 && x < 10) {
+    for (const i of v) {}
+  } else if (x < 0) {
+    return 1;
+  } else {
+    return 2;
+  }
+  return 0;
+}
+`,
+  kotlin: `// comment
+fun f(x: Int): Int {
+  if (x > 0 && x < 10) {
+    for (i in v) {}
+  } else if (x < 0) {
+    return 1
+  } else {
+    return 2
+  }
+  return 0
+}
+`,
+  php: `<?php
+// comment
+function f($x) {
+  if ($x > 0 && $x < 10) {
+    foreach ($v as $i) {}
+  } elseif ($x < 0) {
+    return 1;
+  } else {
+    return 2;
+  }
+  return 0;
+}
+`,
+  python: `# comment
+def f(x):
+    if x > 0 and x < 10:
+        for i in v:
+            pass
+    elif x < 0:
+        return 1
+    else:
+        return 2
+    return 0
+`,
+  ruby: `# comment
+def f(x)
+  if x > 0 && x < 10
+    for i in v
+    end
+  elsif x < 0
+    return 1
+  else
+    return 2
+  end
+  0
+end
+`,
+  rust: `// comment
+fn f(x: i32) -> i32 {
+    if x > 0 && x < 10 {
+        for i in v {}
+    } else if x < 0 {
+        return 1;
+    } else {
+        return 2;
+    }
+    0
+}
+`,
+  tsx: `// comment
+function f(x: number) {
+  if (x > 0 && x < 10) {
+    for (const i of v) {}
+  } else if (x < 0) {
+    return <a />;
+  } else {
+    return 2;
+  }
+  return 0;
+}
+`,
+  typescript: `// comment
+function f(x: number): number {
+  if (x > 0 && x < 10) {
+    for (const i of v) {}
+  } else if (x < 0) {
+    return 1;
+  } else {
+    return 2;
+  }
+  return 0;
+}
+`,
+  zig: `// comment
+fn f(x: i32) i32 {
+    if (x > 0 and x < 10) {
+        for (v) |i| {}
+    } else if (x < 0) {
+        return 1;
+    } else {
+        return 2;
+    }
+    return 0;
+}
+`,
+};
+
+test('lists every Exercode language plus tsx', async () => {
+  const response = await miniflare.dispatchFetch('http://localhost');
+  expect(await response.json()).toEqual({
+    languages: [
+      'c',
+      'cpp',
+      'csharp',
+      'css',
+      'dart',
+      'haskell',
+      'html',
+      'java',
+      'javascript',
+      'jsp',
+      'kotlin',
+      'php',
+      'python',
+      'ruby',
+      'rust',
+      'text',
+      'tsx',
+      'typescript',
+      'zig',
+    ],
+  });
+});
+
+test.each(Object.entries(equivalentPrograms))(
+  'measures %s consistently with other languages',
+  async (language, source) => {
+    const lineCount = source.split('\n').length - 1;
+    expect(await call('measure', language, source)).toEqual({
+      status: 200,
+      body: {
+        result: {
+          lines: { total: lineCount, code: lineCount - 1, comment: 1, blank: 0 },
+          functionCount: 1,
+          // The file, the function, `if`, `&&`, the loop, and `else if`.
+          cyclomaticComplexity: 6,
+          // `if`, `&&`, the loop nested once, `else`, and `else`.
+          cognitiveComplexity: 6,
+          maxNestingDepth: 2,
+        },
+      },
+    });
+  }
+);
+
+test.each([
+  {
+    construct: 'a guarded C# discard case',
+    language: 'csharp',
+    source: 'class A { int F(int x) { switch (x) { case _ when x > 0: return 1; default: return 2; } } }\n',
+  },
+  {
+    construct: 'a guarded Python wildcard case',
+    language: 'python',
+    source: 'def f(x):\n    match x:\n        case _ if x:\n            pass\n',
+  },
+  {
+    construct: 'a guarded Rust wildcard arm',
+    language: 'rust',
+    source: 'fn f(x: i32) -> i32 { match x { _ if x > 0 => 1, _ => 0 } }\n',
+  },
+  {
+    construct: 'a guarded Dart wildcard case',
+    language: 'dart',
+    source: 'int f(int x) { switch (x) { case _ when x > 0: return 1; default: return 2; } }\n',
+  },
+  {
+    construct: 'a guarded Haskell wildcard alternative',
+    language: 'haskell',
+    source: 'f x = case x of\n  _ | x > 0 -> 1\n  _ -> 0\n',
+  },
+  {
+    construct: 'a Dart if-case guard',
+    language: 'dart',
+    source: 'int f(int x) { if (x case int n when n > 0) { return 1; } return 0; }\n',
+  },
+  {
+    construct: 'a C# exception filter',
+    language: 'csharp',
+    source: 'class A { int F(int x) { try { return 1; } catch (System.Exception e) when (x > 0) { return 2; } } }\n',
+  },
+])('scores $construct as its construct plus a guard', async ({ language, source }) => {
+  const { body } = await call('measure', language, source);
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 4 } });
+});
+
+test.each([
+  { construct: 'a Rust let-else', language: 'rust', source: 'fn f() { let Some(x) = opt else { return }; }\n' },
+  { construct: "Kotlin's elvis operator", language: 'kotlin', source: 'fun f(a: Int?, b: Int): Int = a ?: b\n' },
+  {
+    construct: "Zig's orelse with an unreachable operand",
+    language: 'zig',
+    source: 'fn f(a: ?u32) u32 {\n    return a orelse unreachable;\n}\n',
+  },
+  { construct: "Zig's orelse", language: 'zig', source: 'fn f(a: ?i32) i32 {\n    return a orelse 0;\n}\n' },
+])('scores $construct as one decision path', async ({ language, source }) => {
+  const { body } = await call('measure', language, source);
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 3 } });
+});
+
+test('counts a Haskell lambda-cases expression as a function with two alternatives', async () => {
+  const { body } = await call('measure', 'haskell', 'f = \\cases\n  1 -> 1\n  2 -> 2\n');
+  expect(body).toMatchObject({ result: { functionCount: 1, cyclomaticComplexity: 4 } });
+});
+
+test.each([
+  { construct: 'destructor', source: 'class A { ~A() { } }\n' },
+  { construct: 'expression-bodied property', source: 'class A { int P => 1; }\n' },
+  { construct: 'expression-bodied indexer', source: 'class A { int this[int i] => i; }\n' },
+])('counts a C# $construct as a function', async ({ source }) => {
+  const { body } = await call('measure', 'csharp', source);
+  expect(body).toMatchObject({ result: { functionCount: 1, cyclomaticComplexity: 2 } });
+});
+
+test.each([
+  { construct: 'case expression', source: 'f x = case x of\n  1 -> if a then b else c\n  _ -> d\n' },
+  { construct: 'lambda-case expression', source: 'f = \\case\n  1 -> if a then b else c\n  _ -> d\n' },
+])('scores a Haskell $construct as a switch', async ({ source }) => {
+  const { body } = await call('measure', 'haskell', source);
+  expect(body).toMatchObject({ result: { cognitiveComplexity: 4, maxNestingDepth: 2 } });
+});
+
+test.each([
+  {
+    construct: 'Java method overloads',
+    language: 'java',
+    source: 'class A { int f(int x) { return 1; } int f(double y) { return 2; } }\n',
+  },
+  {
+    construct: 'JavaScript getter and setter',
+    language: 'javascript',
+    source: 'class A { get x() { return 1; } set x(v) {} }\n',
+  },
+])('counts $construct as separate functions', async ({ language, source }) => {
+  const { body } = await call('measure', language, source);
+  expect(body).toMatchObject({ result: { functionCount: 2, cyclomaticComplexity: 3 } });
+});
+
+test('counts a Kotlin secondary constructor with a block body as a function', async () => {
+  const { body } = await call('measure', 'kotlin', 'class A {\n  constructor(x: Int) : super(x) { }\n}\n');
+  expect(body).toMatchObject({ result: { functionCount: 1, cyclomaticComplexity: 2 } });
+});
+
+test('counts the equations of one Haskell definition as one function', async () => {
+  const { body } = await call('measure', 'haskell', 'f 0 = 1\n-- | second clause\nf n = n\n\ng x = x\n');
+  expect(body).toMatchObject({ result: { functionCount: 2, cyclomaticComplexity: 3 } });
+});
+
+test('scores each non-default Haskell guard clause as a guard', async () => {
+  const { body } = await call('measure', 'haskell', 'f x\n  | x > 0 = 1\n  | x > 1 = 2\n  | otherwise = 3\n');
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 4, cognitiveComplexity: 2 } });
+});
+
+test.each([
+  { construct: 'a C++ rvalue reference', language: 'cpp', source: 'void f(int&& x) {}\n', cyclomaticComplexity: 2 },
+  {
+    construct: 'a Haskell operator section',
+    language: 'haskell',
+    source: 'f = foldr (&&) True\n',
+    cyclomaticComplexity: 1,
+  },
+])('does not score $construct as a logical operator', async ({ cyclomaticComplexity, language, source }) => {
+  const { body } = await call('measure', language, source);
+  expect(body).toMatchObject({ result: { cyclomaticComplexity, cognitiveComplexity: 0 } });
+});
+
+test.each([
+  { construct: 'on clause', source: 'void f() { try { g(); } on FormatException { h(); } }\n' },
+  { construct: 'on clause with catch', source: 'void f() { try { g(); } on FormatException catch (e) { h(); } }\n' },
+  { construct: 'catch clause', source: 'void f() { try { g(); } catch (e) { h(); } }\n' },
+])('scores a Dart $construct as one exception handler', async ({ source }) => {
+  const { body } = await call('measure', 'dart', source);
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 1, maxNestingDepth: 1 } });
+});
+
+test.each([
+  { construct: 'catch clause', source: 'void f() { try { g(); } catch (e) { if (a) h(); } }\n' },
+  { construct: 'on clause', source: 'void f() { try { g(); } on FormatException { if (a) h(); } }\n' },
+])('nests the body of a Dart $construct like other handlers', async ({ source }) => {
+  const { body } = await call('measure', 'dart', source);
+  expect(body).toMatchObject({ result: { cognitiveComplexity: 3, maxNestingDepth: 2 } });
+});
+
+test.each([
+  { language: 'dart', source: 'var x = a ?? b ?? c;\n' },
+  { language: 'javascript', source: 'const x = a ?? b ?? c;\n' },
+])('scores a chain of the same coalescing operator as one sequence in $language', async ({ language, source }) => {
+  const { body } = await call('measure', language, source);
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 1 } });
+});
+
+test.each([
+  { language: 'haskell', source: 'f x = a > 0 && b > 0 && c > 0\n' },
+  { language: 'javascript', source: 'function f() {\n  return a > 0 && b > 0 && c > 0;\n}\n' },
+])(
+  'scores a chain of the same logical operator between comparisons as one sequence in $language',
+  async ({ language, source }) => {
+    const { body } = await call('measure', language, source);
+    expect(body).toMatchObject({ result: { cyclomaticComplexity: 4, cognitiveComplexity: 1 } });
+  }
+);
+
+test.each([
+  {
+    construct: 'braced',
+    source: 'function f() {\n  if (c) a();\n  else {\n    for (;;) {\n      if (d) b();\n    }\n  }\n}\n',
+  },
+  {
+    construct: 'unbraced',
+    source: 'function f() {\n  if (c) a();\n  else\n    for (;;) {\n      if (d) b();\n    }\n}\n',
+  },
+])('nests a loop in a $construct JavaScript else body', async ({ source }) => {
+  const { body } = await call('measure', 'javascript', source);
+  expect(body).toMatchObject({ result: { cognitiveComplexity: 7, maxNestingDepth: 3 } });
+});
+
+test.each([
+  { language: 'haskell', source: 'f x = a && b && c\n' },
+  { language: 'javascript', source: 'function f() {\n  return a && b && c;\n}\n' },
+])('scores a plain chain of the same logical operator as one sequence in $language', async ({ language, source }) => {
+  const { body } = await call('measure', language, source);
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 4, cognitiveComplexity: 1 } });
+});
+
+test.each([
+  { language: 'haskell', source: 'f x = a && (b && c)\n' },
+  { language: 'javascript', source: 'function f() {\n  return a && (b && c);\n}\n' },
+])('starts a new logical-operator sequence inside grouping parentheses in $language', async ({ language, source }) => {
+  const { body } = await call('measure', language, source);
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 4, cognitiveComplexity: 2 } });
+});
+
+test.each([
+  { construct: 'elsif', source: 'if a then 1 elsif b then 2 else 3 end\n' },
+  { construct: 'else if', source: 'if a then 1 else if b then 2 else 3 end end\n' },
+  { construct: 'else if with a comment between', source: 'if a then 1 else # c\n  if b then 2 else 3 end\nend\n' },
+])('scores a Ruby $construct chain without nesting', async ({ source }) => {
+  const { body } = await call('measure', 'ruby', source);
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 3, maxNestingDepth: 1 } });
+});
+
+test.each([
+  { language: 'python', source: 'v = a if b else c if d else e\n' },
+  { language: 'javascript', source: 'const v = a ? b : c ? d : e;\n' },
+])('nests a chained conditional expression in $language', async ({ language, source }) => {
+  const { body } = await call('measure', language, source);
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 3, maxNestingDepth: 2 } });
+});
+
+test('scores a Dart coalescing chain with a comment inside as one sequence', async () => {
+  const { body } = await call('measure', 'dart', 'var x = a ??\n    // fall back\n    b ??\n    c;\n');
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 1 } });
+});
+
+test('formats whitespace between Dart concatenated strings with a comment between them', async () => {
+  const { body } = await call('format', 'dart', 'var s = "a"   \n    // c\n    "b";\n');
+  expect(body).toEqual({ result: 'var s = "a"\n    // c\n    "b";\n' });
+});
+
+test.each([
+  { language: 'javascript', source: 'function f(a, b) {\n  a ??= b;\n}\n' },
+  { language: 'ruby', source: 'def f(a, b)\n  a ||= b\nend\n' },
+  { language: 'csharp', source: 'class A { void F(int? a, int b) { a ??= b; } }\n' },
+  { language: 'php', source: '<?php\nfunction f($a, $b) { $a ??= $b; }\n' },
+  { language: 'dart', source: 'void f(int? a, int b) {\n  a ??= b;\n}\n' },
+])('scores a short-circuit assignment like its operator in $language', async ({ language, source }) => {
+  const { body } = await call('measure', language, source);
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 1 } });
+});
+
+test('scores Python comprehension clauses as branches', async () => {
+  const { body } = await call('measure', 'python', 'ys = [x for x in xs if x]\n');
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 2, maxNestingDepth: 1 } });
+});
+
+test('scores Haskell comprehension qualifiers as branches', async () => {
+  const { body } = await call('measure', 'haskell', 'ys = [x | x <- xs, x > 0]\n');
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 2, maxNestingDepth: 1 } });
+});
+
+test('scores C# query clauses as branches', async () => {
+  const { body } = await call(
+    'measure',
+    'csharp',
+    'class A { int[] F(int[] xs) => (from x in xs where x > 0 select x).ToArray(); }\n'
+  );
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 4, cognitiveComplexity: 2, maxNestingDepth: 1 } });
+});
+
+test('counts a PHP property hook with a body as a function', async () => {
+  const { body } = await call('measure', 'php', '<?php class A { public int $x { get => 1; } }\n');
+  expect(body).toMatchObject({ result: { functionCount: 1, cyclomaticComplexity: 2 } });
+});
+
+test('does not score the fallback of a Ruby case as an else branch', async () => {
+  const { body } = await call('measure', 'ruby', 'def f(x)\n  case x\n  when 1\n    1\n  else\n    2\n  end\nend\n');
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 1 } });
+});
+
+test('measures Haskell', async () => {
+  const source = `-- comment
+f :: Int -> Int
+f x = if x > 0 && x < 10 then 1 else if x < 0 then 2 else 3
+`;
+  const { body } = await call('measure', 'haskell', source);
+  expect(body).toEqual({
+    result: {
+      lines: { total: 3, code: 2, comment: 1, blank: 0 },
+      functionCount: 1,
+      cyclomaticComplexity: 5,
+      cognitiveComplexity: 4,
+      maxNestingDepth: 1,
+    },
+  });
+});
+
+// Only the non-wildcard arm adds a path besides the file and the function.
+test.each([
+  { language: 'rust', source: 'fn f(x: i32) -> i32 { match x { 1 => 1, _ => 0 } }\n' },
+  {
+    language: 'python',
+    source: 'def f(x):\n    match x:\n        case 1:\n            pass\n        case _:\n            pass\n',
+  },
+  { language: 'haskell', source: 'f x = case x of\n  1 -> 1\n  _ -> 0\n' },
+])('does not count a wildcard case as a path in $language', async ({ language, source }) => {
+  const { body } = await call('measure', language, source);
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 3 } });
+});
+
+test.each([
+  { construct: 'switch case', source: 'int f(int x) { switch (x) { case 1 || 2: return 1; } return 0; }\n' },
+  { construct: 'if-case', source: 'int f(int x) { if (x case 1 || 2) { return 1; } return 0; }\n' },
+  {
+    construct: 'record pattern',
+    source: 'int f((int, int) x) { switch (x) { case (1 || 2, 3): return 1; } return 0; }\n',
+  },
+  { construct: 'list pattern', source: 'int f(List<int> x) { switch (x) { case [1 || 2]: return 1; } return 0; }\n' },
+])('does not score a Dart or-pattern in a $construct as a logical operator', async ({ source }) => {
+  const { body } = await call('measure', 'dart', source);
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 1 } });
+});
+
+test('does not score a Dart or-pattern in a declaration pattern as a logical operator', async () => {
+  const { body } = await call('measure', 'dart', 'void f(int x) {\n  var (int y || int y) = x;\n}\n');
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 2, cognitiveComplexity: 0 } });
+});
+
+test('does not count a C# discard case as a path when a comment precedes its pattern', async () => {
+  const { body } = await call(
+    'measure',
+    'csharp',
+    'class A { int F(int x) { switch (x) { case /*c*/ _: return 1; default: return 2; } } }\n'
+  );
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 2 } });
+});
+
+test.each([
+  { construct: 'parenthesized', label: '(_)' },
+  { construct: 'commented and parenthesized', label: '(\n            # anything else\n            _\n        )' },
+])('does not count a $construct Python wildcard case as a path', async ({ label }) => {
+  const source = `def f(x):\n    match x:\n        case 1:\n            pass\n        case ${label}:\n            pass\n`;
+  const { body } = await call('measure', 'python', source);
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 3 } });
+});
+
+test('counts a Python one-element sequence case as a path', async () => {
+  const { body } = await call(
+    'measure',
+    'python',
+    'def f(x):\n    match x:\n        case 1:\n            pass\n        case _,:\n            pass\n'
+  );
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 4 } });
+});
+
+test('counts a Java case labeled with a constant named otherwise as a path', async () => {
+  const { body } = await call(
+    'measure',
+    'java',
+    'class A { int f(int x) { switch (x) { case otherwise: return 1; default: return 2; } } }\n'
+  );
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 3 } });
+});
+
+test('counts a JavaScript case labeled with the identifier _ as a path', async () => {
+  const { body } = await call('measure', 'javascript', 'switch (x) {\n  case _:\n    f();\n}\n');
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 2 } });
+});
+
+test('counts a Ruby lambda once through its block', async () => {
+  const { body } = await call('measure', 'ruby', 'f = ->(x) { x }\n');
+  expect(body).toMatchObject({ result: { functionCount: 1, cyclomaticComplexity: 2 } });
+});
+
+test.each([
+  {
+    construct: 'C# auto-property and abstract method',
+    language: 'csharp',
+    source: 'abstract class A { public int X { get; set; } abstract int G(); }\n',
+  },
+  {
+    construct: 'C# auto-property with an initializer',
+    language: 'csharp',
+    source: 'class A { int Q { get; set; } = 2; }\n',
+  },
+  {
+    construct: 'PHP interface property hook',
+    language: 'php',
+    source: '<?php interface I { public int $x { get; } }\n',
+  },
+  {
+    construct: 'Kotlin delegating secondary constructor',
+    language: 'kotlin',
+    source: 'class A(val x: Int) { constructor() : this(1) }\n',
+  },
+  { construct: 'Kotlin interface function', language: 'kotlin', source: 'interface A {\n  fun g(): Int\n}\n' },
+])('does not count a bodiless $construct as a function', async ({ language, source }) => {
+  const { body } = await call('measure', language, source);
+  expect(body).toMatchObject({ result: { functionCount: 0, cyclomaticComplexity: 1 } });
+});
+
+// Complexity metrics are omitted.
+test.each([
+  {
+    language: 'css',
+    source: '/* comment */\na {\n  color: red;\n}\n',
+    lines: { total: 4, code: 3, comment: 1, blank: 0 },
+  },
+  {
+    language: 'html',
+    source: '<!-- comment -->\n<p>\n  hi\n</p>\n',
+    lines: { total: 4, code: 3, comment: 1, blank: 0 },
+  },
+  {
+    language: 'jsp',
+    source: '<%-- comment --%>\n<p>\n  <%= x %>\n</p>\n',
+    lines: { total: 4, code: 3, comment: 1, blank: 0 },
+  },
+  { language: 'text', source: 'hello\n\nworld\n', lines: { total: 3, code: 2, comment: 0, blank: 1 } },
+])('measures only lines of $language', async ({ language, lines, source }) => {
+  const { body } = await call('measure', language, source);
+  expect(body).toEqual({ result: { lines } });
+});
+
+test('reports syntax errors and trailing whitespace outside literals', async () => {
+  const source = 'const a = `x  \ny`;  \nconst b = ;\n';
+  const { body } = await call('lint', 'javascript', source);
+  expect(body).toEqual({
+    result: [
+      {
+        rule: 'trailing-whitespace',
+        message: 'Trailing whitespace',
+        start: { line: 2, column: 4 },
+        end: { line: 2, column: 6 },
+      },
+      {
+        rule: 'syntax-error',
+        message: 'Unexpected syntax',
+        start: { line: 3, column: 9 },
+        end: { line: 3, column: 10 },
+      },
+    ],
+  });
+});
+
+test('does not report CRLF line endings as trailing whitespace', async () => {
+  const { body } = await call('lint', 'text', 'a\r\nb \r\n');
+  expect(body).toEqual({
+    result: [
+      {
+        rule: 'trailing-whitespace',
+        message: 'Trailing whitespace',
+        start: { line: 2, column: 2 },
+        end: { line: 2, column: 3 },
+      },
+    ],
+  });
+});
+
+test('counts columns in UTF-16 code units', async () => {
+  const { body } = await call('lint', 'text', 'é😀 \n');
+  expect(body).toEqual({
+    result: [
+      {
+        rule: 'trailing-whitespace',
+        message: 'Trailing whitespace',
+        start: { line: 1, column: 4 },
+        end: { line: 1, column: 5 },
+      },
+    ],
+  });
+});
+
+test('trims whitespace after a self-closing HTML pre', async () => {
+  const { body } = await call('format', 'html', '<pre/>  \n\n');
+  expect(body).toEqual({ result: '<pre/>\n' });
+});
+
+test('trims line-end whitespace inside multi-line HTML text', async () => {
+  const { body } = await call('format', 'html', '<p>\nHello   \nworld\n</p>\n');
+  expect(body).toEqual({ result: '<p>\nHello\nworld\n</p>\n' });
+});
+
+test("keeps an unclosed HTML pre's trailing whitespace but trims the whitespace after its closed parent", async () => {
+  const { body } = await call('format', 'html', '<div><pre>x  \n</div>  \n\n');
+  expect(body).toEqual({ result: '<div><pre>x  \n</div>\n' });
+});
+
+test.each([
+  { construct: 'HTML script body', language: 'html', source: '<script>\nvar s = "a  \nb";\n</script>\n' },
+  { construct: 'HTML pre text', language: 'html', source: '<pre>\nhello   \n</pre>\n' },
+  { construct: 'HTML pre element without an end tag', language: 'html', source: '<pre>x  \n' },
+  {
+    construct: 'HTML textarea element without an end tag or a final newline',
+    language: 'html',
+    source: '<textarea>x  ',
+  },
+  { construct: 'HTML attribute value', language: 'html', source: '<a title="a  \nb">x</a>\n' },
+  { construct: 'JSP scriptlet', language: 'jsp', source: '<%\nString s = "a  \nb";\n%>\n' },
+  { construct: 'PHP template text', language: 'php', source: '<p>\nhello   \n</p>\n' },
+  { construct: 'PHP template text at the end of the file', language: 'php', source: '<?php echo 1; ?>\n<pre>x  ' },
+  { construct: 'PHP template whitespace after a closing tag', language: 'php', source: '<?php echo 1; ?>\t\ny\n' },
+  { construct: 'PHP template whitespace before the opening tag', language: 'php', source: '  \n<?php echo 1; ?>\n' },
+  { construct: 'PHP file of template text only', language: 'php', source: '   \n<p>x  \n' },
+  { construct: 'JSP template text at the end of the file', language: 'jsp', source: '<% int a = 1; %>\n<pre>x  ' },
+])('keeps whitespace inside a $construct', async ({ language, source }) => {
+  expect(await call('lint', language, source)).toEqual({ status: 200, body: { result: [] } });
+  expect(await call('format', language, source)).toEqual({ status: 200, body: { result: source } });
+});
+
+test('ends TypeScript code with a string type keyword with a newline', async () => {
+  const { body } = await call('format', 'typescript', 'type A = string');
+  expect(body).toEqual({ result: 'type A = string\n' });
+});
+
+test.each([
+  { language: 'python', source: 'x = ("a"   \n     "b")\n', formatted: 'x = ("a"\n     "b")\n' },
+  { language: 'dart', source: 'var s = "a"   \n    "b";\n', formatted: 'var s = "a"\n    "b";\n' },
+])(
+  'formats trailing whitespace between the parts of a $language string concatenation',
+  async ({ formatted, language, source }) => {
+    const { body } = await call('format', language, source);
+    expect(body).toEqual({ result: formatted });
+  }
+);
+
+test.each([
+  { language: 'haskell', source: 's = [r|\nhello   \nworld|]\n' },
+  { language: 'kotlin', source: 'val s = """a  \nb"""\n' },
+  { language: 'php', source: '<?php\n$s = <<<EOT\n  a  \nEOT;\n' },
+  { language: 'ruby', source: 'x = <<~EOS\n  a  \nEOS\n' },
+  { language: 'csharp', source: 'var s = """\n  a  \n  """;\n' },
+  { language: 'rust', source: 'fn f() {\n    let s = r"a  \nb";\n}\n' },
+])('keeps trailing whitespace inside a $language multi-line literal', async ({ language, source }) => {
+  const { body } = await call('format', language, source);
+  expect(body).toEqual({ result: source });
+});
+
+test.each([
+  { construct: 'unterminated heredoc with trailing whitespace', source: 's = <<~EOS\n  abc   \n' },
+  { construct: 'unterminated heredoc without a final newline', source: 's = <<~EOS\n  abc' },
+  { construct: '__END__ data section', source: 'puts DATA.read\n__END__\ndata line  \r\nmore\n\n' },
+])('keeps a Ruby $construct that reaches the end of the file', async ({ source }) => {
+  expect(await call('lint', 'ruby', source)).toEqual({ status: 200, body: { result: [] } });
+  expect(await call('format', 'ruby', source)).toEqual({ status: 200, body: { result: source } });
+});
+
+test.each([
+  { construct: 'string', source: 'x = "a\\  \nb"\n' },
+  { construct: 'heredoc', source: 'x = <<~EOS\n  a\\  \nEOS\n' },
+  { construct: 'regex', source: 's = /a\\ \nb/\n' },
+  { construct: 'subshell', source: 's = `a\\ \nb`\n' },
+])('keeps an escaped space at a line end in a Ruby $construct', async ({ source }) => {
+  expect(await call('lint', 'ruby', source)).toEqual({ status: 200, body: { result: [] } });
+  expect(await call('format', 'ruby', source)).toEqual({ status: 200, body: { result: source } });
+});
+
+test.each([
+  {
+    construct: 'Rust raw string with leading whitespace',
+    language: 'rust',
+    source: 'fn f() {\n    let s = r#"  \r\nbb"#;\n}\n',
+  },
+  { construct: 'whitespace-only PHP heredoc body', language: 'php', source: '<?php\n$s = <<<EOT\n  \nEOT;\n' },
+])('keeps the value bytes of a $construct that no child node covers', async ({ language, source }) => {
+  expect(await call('lint', language, source)).toEqual({ status: 200, body: { result: [] } });
+  expect(await call('format', language, source)).toEqual({ status: 200, body: { result: source } });
+});
+
+test('keeps trailing whitespace that ends a multi-line literal', async () => {
+  const source = 'const a =\n    \\\\hello  \n    \\\\world  \n;\n';
+  const { body } = await call('format', 'zig', source);
+  expect(body).toEqual({ result: source });
+});
+
+test('formats trailing whitespace and blank lines, keeping them inside literals', async () => {
+  const source = 's = """a  \nb"""  \r\nt = 1\t\n\n\n';
+  const { body } = await call('format', 'python', source);
+  expect(body).toEqual({ result: 's = """a  \nb"""\nt = 1\n' });
+});
+
+test.each([
+  { construct: 'property with a type', source: 'class A { val a: Int = 1 }\n' },
+  { construct: 'property without a type', source: 'class A { val x = 1 }\n' },
+  { construct: 'initializer', source: 'class A { init { } }\n' },
+])('formats a Kotlin one-line class body with a $construct that lint reports as clean', async ({ source }) => {
+  expect(await call('lint', 'kotlin', source)).toEqual({ status: 200, body: { result: [] } });
+  expect(await call('format', 'kotlin', source)).toEqual({ status: 200, body: { result: source } });
+});
+
+test('keeps code unchanged when formatting would introduce a syntax error', async () => {
+  expect(await call('lint', 'ruby', 'x = y&')).toEqual({ status: 200, body: { result: [] } });
+  expect(await call('format', 'ruby', 'x = y&')).toEqual({ status: 200, body: { result: 'x = y&' } });
+});
+
+test('refuses to format code with syntax errors', async () => {
+  expect(await call('format', 'python', 'def f(:\n')).toEqual({
+    status: 400,
+    body: { error: 'Cannot format code with syntax errors' },
+  });
+});
+
 test.each([
   {
     language: 'typescript',
@@ -34,18 +844,23 @@ test.each([
     tree: '(program (lexical_declaration (variable_declarator name: (identifier) value: (jsx_self_closing_element name: (identifier)))))',
   },
 ])('parses $language inside workerd', async ({ language, source, tree }) => {
-  const response = await miniflare.dispatchFetch('http://localhost', {
-    body: JSON.stringify({ language, source }),
-    method: 'POST',
-  });
-  expect(await response.json()).toEqual({ tree });
+  const { body } = await call('syntaxTree', language, source);
+  expect(body).toEqual({ result: tree });
+});
+
+test('handles deeply nested code without breaking later calls', async () => {
+  const source = `let x = ${'['.repeat(20_000)}${']'.repeat(20_000)};\n`;
+  for (const operation of ['measure', 'lint', 'format']) {
+    const { status } = await call(operation, 'javascript', source);
+    expect(status).toBe(200);
+  }
+  const { body } = await call('measure', 'text', 'ok\n');
+  expect(body).toEqual({ result: { lines: { total: 1, code: 1, comment: 0, blank: 0 } } });
 });
 
 test('rejects an unsupported language', async () => {
-  const response = await miniflare.dispatchFetch('http://localhost', {
-    body: JSON.stringify({ language: 'cobol', source: '' }),
-    method: 'POST',
+  expect(await call('measure', 'cobol', '')).toEqual({
+    status: 400,
+    body: { error: 'Unsupported language: cobol' },
   });
-  expect(response.status).toBe(400);
-  expect(await response.json()).toEqual({ error: 'Unsupported language: cobol' });
 });
