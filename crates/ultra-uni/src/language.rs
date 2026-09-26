@@ -31,7 +31,8 @@ pub struct Profile {
     pub optional_body_functions: &'static [&'static str],
     /// Conditionals, loops, and handlers: they add a path and nest the code inside them.
     pub branches: &'static [&'static str],
-    /// Branches that continue a chain (e.g., `elif`) and therefore do not nest.
+    /// Branches that continue a chain (e.g., `elif`) or guard another branch (e.g., a `case` guard),
+    /// and therefore do not nest.
     pub chained_branches: &'static [&'static str],
     /// Multi-way branches, whose paths are counted by their `cases` instead.
     pub switches: &'static [&'static str],
@@ -133,6 +134,7 @@ const CSHARP: Profile = Profile {
         "operator_declaration",
         "conversion_operator_declaration",
         "accessor_declaration",
+        "destructor_declaration",
     ],
     optional_body_functions: &[
         "method_declaration",
@@ -151,7 +153,7 @@ const CSHARP: Profile = Profile {
         "conditional_expression",
         "catch_clause",
     ],
-    chained_branches: &[],
+    chained_branches: &["when_clause"],
     switches: &["switch_statement", "switch_expression"],
     cases: &["switch_section", "switch_expression_arm"],
     logical_operators: &["&&", "||", "??"],
@@ -206,7 +208,7 @@ const JAVA: Profile = Profile {
         "ternary_expression",
         "catch_clause",
     ],
-    chained_branches: &[],
+    chained_branches: &["guard"],
     switches: &["switch_expression"],
     cases: &["switch_label"],
     logical_operators: C_LIKE_LOGICAL_OPERATORS,
@@ -297,6 +299,8 @@ const PYTHON: Profile = Profile {
         "while_statement",
         "conditional_expression",
         "except_clause",
+        "for_in_clause",
+        "if_clause",
     ],
     chained_branches: &["elif_clause"],
     switches: &["match_statement"],
@@ -323,7 +327,7 @@ const RUBY: Profile = Profile {
         "until_modifier",
         "rescue_modifier",
     ],
-    chained_branches: &["elsif"],
+    chained_branches: &["elsif", "if_guard", "unless_guard"],
     switches: &["case", "case_match"],
     cases: &["when", "in_clause"],
     logical_operators: &["&&", "||", "and", "or"],

@@ -7,11 +7,12 @@ use tree_sitter::{Node, Tree};
 pub fn format(source: &str, tree: Option<&Tree>) -> String {
     let mut formatted = String::with_capacity(source.len());
     let mut last = 0;
-    for range in trailing_whitespace(source, tree) {
+    for range in trailing_whitespace(source, &literal_ranges(tree)) {
         formatted.push_str(&source[last..range.start]);
         last = range.end;
     }
     formatted.push_str(&source[last..]);
+    // Valid code never ends inside a literal, so the trailing whitespace here is outside literals.
     let trimmed_len = formatted.trim_end_matches(['\n', ' ', '\t', '\r']).len();
     formatted.truncate(trimmed_len);
     if !formatted.is_empty() {
@@ -20,23 +21,29 @@ pub fn format(source: &str, tree: Option<&Tree>) -> String {
     formatted
 }
 
-/// Byte ranges of whitespace before each line break or the end of `source`, excluding whitespace
-/// inside literals where it is part of the value.
-pub fn trailing_whitespace(source: &str, tree: Option<&Tree>) -> Vec<Range<usize>> {
+/// Byte ranges of the innermost literal nodes, in document order and disjoint.
+pub fn literal_ranges(tree: Option<&Tree>) -> Vec<Range<usize>> {
     let mut literals = Vec::new();
     if let Some(tree) = tree {
         collect_literals(tree.root_node(), &mut literals);
     }
+    literals
+}
+
+/// Byte ranges of whitespace before each line break or the end of `source`, excluding whitespace
+/// inside `literals` where it is part of the value.
+pub fn trailing_whitespace(source: &str, literals: &[Range<usize>]) -> Vec<Range<usize>> {
     let mut ranges = Vec::new();
     let mut line_start = 0;
     for line in source.split_inclusive('\n') {
         let content = line.strip_suffix('\n').unwrap_or(line);
         let end = line_start + content.len();
-        let start = line_start + content.trim_end_matches([' ', '\t', '\r']).len();
-        let in_literal = literals
-            .iter()
-            .any(|literal| literal.start <= start && end <= literal.end);
-        if start < end && !in_literal {
+        let mut start = line_start + content.trim_end_matches([' ', '\t', '\r']).len();
+        let index = literals.partition_point(|literal| literal.end <= start);
+        if let Some(literal) = literals.get(index).filter(|literal| literal.start <= start) {
+            start = literal.end;
+        }
+        if start < end {
             ranges.push(start..end);
         }
         line_start += line.len();

@@ -256,6 +256,11 @@ test('does not score a Haskell operator section as a logical operator', async ()
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 1, cognitiveComplexity: 0 } });
 });
 
+test('scores Python comprehension clauses as branches', async () => {
+  const { body } = await call('measure', 'python', 'ys = [x for x in xs if x]\n');
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 2, maxNestingDepth: 1 } });
+});
+
 test('does not score the fallback of a Ruby case as an else branch', async () => {
   const { body } = await call('measure', 'ruby', 'def f(x)\n  case x\n  when 1\n    1\n  else\n    2\n  end\nend\n');
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 1 } });
@@ -299,6 +304,12 @@ test.each([
     source: 'abstract class A { public int X { get; set; } abstract int G(); }\n',
     functionCount: 0,
     cyclomaticComplexity: 1,
+  },
+  {
+    language: 'csharp',
+    source: 'class A { ~A() { } }\n',
+    functionCount: 1,
+    cyclomaticComplexity: 2,
   },
   {
     language: 'kotlin',
