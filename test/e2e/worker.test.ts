@@ -503,6 +503,11 @@ test('counts columns in UTF-16 code units', async () => {
   });
 });
 
+test('trims whitespace after an unclosed HTML pre inside a closed element', async () => {
+  const { body } = await call('format', 'html', '<div><pre>x  \n</div>  \n\n');
+  expect(body).toEqual({ result: '<div><pre>x  \n</div>\n' });
+});
+
 test.each([
   { construct: 'HTML script body', language: 'html', source: '<script>\nvar s = "a  \nb";\n</script>\n' },
   { construct: 'HTML pre text', language: 'html', source: '<pre>\nhello   \n</pre>\n' },

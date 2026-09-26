@@ -87,19 +87,22 @@ fn collect_literals(source: &str, root: Node, literals: &mut Literals) {
             return true;
         }
         let mut range = node.byte_range();
-        // A value region is open when its content runs to the end of the file without a closing
-        // node: an element without an end tag (which the grammar ends at its last child, before
-        // its trailing whitespace), an unterminated Ruby heredoc (whose closing node is zero-width),
-        // or Ruby's `__END__` data.
+        // The grammar ends an element without an end tag at its last child, before the whitespace
+        // that is still its content. A value region is open when its content runs to the end of
+        // the file without a closing node: such an element, an unterminated Ruby heredoc (whose
+        // closing node is zero-width), or Ruby's `__END__` data.
         let mut cursor = node.walk();
         let is_unclosed_element = kind == "element"
             && !node
                 .children(&mut cursor)
                 .any(|child| child.kind() == "end_tag");
         if is_unclosed_element {
-            range.end = source.len();
+            range.end += source[range.end..]
+                .bytes()
+                .take_while(u8::is_ascii_whitespace)
+                .count();
         }
-        let has_open_end = is_unclosed_element
+        let has_open_end = is_unclosed_element && range.end == source.len()
             || kind == "uninterpreted"
             || node
                 .child(node.child_count().saturating_sub(1))
