@@ -431,16 +431,22 @@ mod tests {
                 profile.wildcard_cases,
             ];
             for kind in named_kinds.concat() {
-                assert_ne!(grammar.id_for_node_kind(kind, true), 0, "{id}: {kind}");
+                assert!(is_node_kind(&grammar, kind, true), "{id}: {kind}");
             }
             match profile.operator_node {
-                Some(kind) => assert_ne!(grammar.id_for_node_kind(kind, true), 0, "{id}: {kind}"),
+                Some(kind) => assert!(is_node_kind(&grammar, kind, true), "{id}: {kind}"),
                 None => {
                     for kind in profile.logical_operators {
-                        assert_ne!(grammar.id_for_node_kind(kind, false), 0, "{id}: {kind}");
+                        assert!(is_node_kind(&grammar, kind, false), "{id}: {kind}");
                     }
                 }
             }
         }
+    }
+
+    /// Supertypes resolve to an id too, yet never appear as a node, so only visible kinds count.
+    fn is_node_kind(grammar: &Language, kind: &str, named: bool) -> bool {
+        let id = grammar.id_for_node_kind(kind, named);
+        id != 0 && grammar.node_kind_is_visible(id)
     }
 }
