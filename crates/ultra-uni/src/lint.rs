@@ -1,7 +1,7 @@
 use serde::Serialize;
 use tree_sitter::{Node, Tree};
 
-use crate::format::{literals, trailing_whitespace};
+use crate::format::{trailing_whitespace, value_ranges};
 use crate::tree::walk;
 
 #[derive(Serialize)]
@@ -26,7 +26,7 @@ pub fn lint(source: &str, tree: Option<&Tree>) -> Vec<Diagnostic> {
     if let Some(tree) = tree {
         collect_syntax_errors(&lines, tree.root_node(), &mut diagnostics);
     }
-    for mut range in trailing_whitespace(source, &literals(source, tree).ranges) {
+    for mut range in trailing_whitespace(source, &value_ranges(source, tree)) {
         // `format` converts CRLF, but a CRLF line ending alone is not trailing whitespace.
         if source[range.clone()].ends_with('\r') {
             range.end -= 1;

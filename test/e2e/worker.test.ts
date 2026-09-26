@@ -520,6 +520,8 @@ test.each([
   { construct: 'HTML attribute value', language: 'html', source: '<a title="a  \nb">x</a>\n' },
   { construct: 'JSP scriptlet', language: 'jsp', source: '<%\nString s = "a  \nb";\n%>\n' },
   { construct: 'PHP template text', language: 'php', source: '<p>\nhello   \n</p>\n' },
+  { construct: 'PHP template text at the end of the file', language: 'php', source: '<?php echo 1; ?>\n<pre>x  ' },
+  { construct: 'JSP template text at the end of the file', language: 'jsp', source: '<% int a = 1; %>\n<pre>x  ' },
 ])('keeps whitespace inside a $construct', async ({ language, source }) => {
   expect(await call('lint', language, source)).toEqual({ status: 200, body: { result: [] } });
   expect(await call('format', language, source)).toEqual({ status: 200, body: { result: source } });
