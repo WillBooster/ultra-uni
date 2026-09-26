@@ -518,7 +518,7 @@ test('trims line-end whitespace inside multi-line HTML text', async () => {
   expect(body).toEqual({ result: '<p>\nHello\nworld\n</p>\n' });
 });
 
-test('trims whitespace after an unclosed HTML pre inside a closed element', async () => {
+test("keeps an unclosed HTML pre's trailing whitespace but trims the whitespace after its closed parent", async () => {
   const { body } = await call('format', 'html', '<div><pre>x  \n</div>  \n\n');
   expect(body).toEqual({ result: '<div><pre>x  \n</div>\n' });
 });
