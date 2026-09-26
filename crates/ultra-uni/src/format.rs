@@ -87,7 +87,17 @@ fn collect_literals(source: &str, root: Node, literals: &mut Literals) {
         if !is_value {
             return true;
         }
-        let range = node.byte_range();
+        let mut range = node.byte_range();
+        // An element without an end tag stops at its last child, before its trailing whitespace.
+        if kind == "element" && node.child_by_field_name("end_tag").is_none() {
+            let mut cursor = node.walk();
+            if !node
+                .children(&mut cursor)
+                .any(|child| child.kind() == "end_tag")
+            {
+                range.end = source.len();
+            }
+        }
         // An unterminated Ruby heredoc ends with a zero-width closing node.
         let has_open_end = kind == "uninterpreted"
             || node
