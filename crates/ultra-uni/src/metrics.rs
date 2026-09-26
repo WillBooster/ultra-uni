@@ -373,6 +373,18 @@ fn is_else_branch(token: Node, profile: &Profile) -> bool {
     })
 }
 
+/// Strips the parentheses that group a pattern such as Python's `(_)`, which still matches anything.
+fn unparenthesize(mut text: &str) -> &str {
+    while let Some(inner) = text
+        .trim()
+        .strip_prefix('(')
+        .and_then(|rest| rest.strip_suffix(')'))
+    {
+        text = inner;
+    }
+    text.trim()
+}
+
 /// The construct an `else` token belongs to, looking through the node that wraps the keyword and
 /// its body: `else_clause` in C-like grammars and `else` in Ruby.
 fn else_owner(token: Node) -> Option<Node> {
@@ -395,8 +407,12 @@ fn is_default_case(node: Node, source: &str, profile: &Profile) -> bool {
         .child_by_field_name("pattern")
         .or_else(|| first_code_child(node));
     let is_catch_all = profile.wildcard_cases.contains(&node.kind())
-        && pattern
-            .is_some_and(|pattern| matches!(&source[pattern.byte_range()], "_" | "otherwise"));
+        && pattern.is_some_and(|pattern| {
+            matches!(
+                unparenthesize(&source[pattern.byte_range()]),
+                "_" | "otherwise"
+            )
+        });
     // Haskell's `guards` names its own condition `guard`; that condition is the pattern here.
     let has_guard = node
         .child_by_field_name("guard")
