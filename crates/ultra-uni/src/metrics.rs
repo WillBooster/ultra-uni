@@ -324,16 +324,24 @@ fn has_body(node: Node) -> bool {
             .any(|child| child.kind() == "function_body")
 }
 
-/// Whether the node is a further equation of the definition before it, as Haskell writes one
-/// function as several equations with the same name.
+/// Whether the node is a further equation of the Haskell definition before it, since Haskell
+/// writes one function as several equations with the same name; other languages' same-name
+/// siblings are overloads, each its own function.
 fn continues_definition(node: Node, source: &str) -> bool {
+    if node.kind() != "function" {
+        return false;
+    }
     let name = |node: Node| {
         node.child_by_field_name("name")
             .map(|name| &source[name.byte_range()])
     };
-    node.prev_named_sibling().is_some_and(|previous| {
-        previous.kind() == node.kind() && name(previous).is_some() && name(previous) == name(node)
-    })
+    std::iter::successors(node.prev_named_sibling(), Node::prev_named_sibling)
+        .find(|sibling| !matches!(sibling.kind(), "comment" | "haddock"))
+        .is_some_and(|previous| {
+            previous.kind() == "function"
+                && name(previous).is_some()
+                && name(previous) == name(node)
+        })
 }
 
 /// Haskell's grammar names function types `function` as well as function declarations.

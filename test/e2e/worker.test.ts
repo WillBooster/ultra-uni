@@ -346,8 +346,24 @@ test.each([
   expect(body).toMatchObject({ result: { cognitiveComplexity: 4, maxNestingDepth: 2 } });
 });
 
+test.each([
+  {
+    construct: 'Java method overloads',
+    language: 'java',
+    source: 'class A { int f(int x) { return 1; } int f(double y) { return 2; } }\n',
+  },
+  {
+    construct: 'JavaScript getter and setter',
+    language: 'javascript',
+    source: 'class A { get x() { return 1; } set x(v) {} }\n',
+  },
+])('counts $construct as separate functions', async ({ language, source }) => {
+  const { body } = await call('measure', language, source);
+  expect(body).toMatchObject({ result: { functionCount: 2, cyclomaticComplexity: 3 } });
+});
+
 test('counts the equations of one Haskell definition as one function', async () => {
-  const { body } = await call('measure', 'haskell', 'f 0 = 1\nf n = n\n\ng x = x\n');
+  const { body } = await call('measure', 'haskell', 'f 0 = 1\n-- | second clause\nf n = n\n\ng x = x\n');
   expect(body).toMatchObject({ result: { functionCount: 2, cyclomaticComplexity: 3 } });
 });
 
