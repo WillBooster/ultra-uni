@@ -369,6 +369,11 @@ test('scores C# query clauses as branches', async () => {
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 4, cognitiveComplexity: 2, maxNestingDepth: 1 } });
 });
 
+test('counts a PHP property hook with a body as a function', async () => {
+  const { body } = await call('measure', 'php', '<?php class A { public int $x { get => 1; } }\n');
+  expect(body).toMatchObject({ result: { functionCount: 1, cyclomaticComplexity: 2 } });
+});
+
 test('does not score the fallback of a Ruby case as an else branch', async () => {
   const { body } = await call('measure', 'ruby', 'def f(x)\n  case x\n  when 1\n    1\n  else\n    2\n  end\nend\n');
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 1 } });
@@ -409,6 +414,12 @@ test.each([
   {
     language: 'csharp',
     source: 'abstract class A { public int X { get; set; } abstract int G(); }\n',
+    functionCount: 0,
+    cyclomaticComplexity: 1,
+  },
+  {
+    language: 'php',
+    source: '<?php interface I { public int $x { get; } }\n',
     functionCount: 0,
     cyclomaticComplexity: 1,
   },

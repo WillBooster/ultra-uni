@@ -290,8 +290,9 @@ const PHP: Profile = Profile {
         "method_declaration",
         "anonymous_function",
         "arrow_function",
+        "property_hook",
     ],
-    optional_body_functions: &["method_declaration"],
+    optional_body_functions: &["method_declaration", "property_hook"],
     branches: &[
         "if_statement",
         "for_statement",
