@@ -265,6 +265,18 @@ test.each([
     cyclomaticComplexity: 4,
   },
   {
+    construct: 'a guarded Rust wildcard arm',
+    language: 'rust',
+    source: 'fn f(x: i32) -> i32 { match x { _ if x > 0 => 1, _ => 0 } }\n',
+    cyclomaticComplexity: 4,
+  },
+  {
+    construct: 'a guarded Dart wildcard case',
+    language: 'dart',
+    source: 'int f(int x) { switch (x) { case _ when x > 0: return 1; default: return 2; } }\n',
+    cyclomaticComplexity: 4,
+  },
+  {
     construct: 'a C# exception filter',
     language: 'csharp',
     source: 'class A { int F(int x) { try { return 1; } catch (System.Exception e) when (x > 0) { return 2; } } }\n',

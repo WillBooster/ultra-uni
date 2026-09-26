@@ -182,8 +182,14 @@ impl ComplexityCounter<'_> {
             self.cognitive += 1 + nesting.cognitive;
             inner.cognitive += 1;
             inner.control += 1;
-        } else if profile.cases.contains(&kind) && !is_default_case(node, self.source, profile) {
-            self.cyclomatic += 1;
+        } else if profile.cases.contains(&kind) {
+            if !is_default_case(node, self.source, profile) {
+                self.cyclomatic += 1;
+            }
+            if has_bare_guard(node) {
+                self.cyclomatic += 1;
+                self.cognitive += 1;
+            }
         }
         self.max_nesting_depth = self.max_nesting_depth.max(inner.control);
         let mut cursor = node.walk();
@@ -225,6 +231,20 @@ impl<'a> ComplexityCounter<'a> {
                     .any(|child| self.logical_operator(child) == Some(operator))
             })
     }
+}
+
+/// Whether a case has a guard that the grammar does not wrap in a node of its own: a Rust match
+/// arm's pattern `condition` or Dart's `when` clause.
+fn has_bare_guard(case: Node) -> bool {
+    let mut cursor = case.walk();
+    case.child_by_field_name("pattern")
+        .is_some_and(|pattern| pattern.child_by_field_name("condition").is_some())
+        || case
+            .children(&mut cursor)
+            // Ruby's `when` clause starts with the keyword instead.
+            .any(|child| {
+                !child.is_named() && child.kind() == "when" && child.prev_sibling().is_some()
+            })
 }
 
 /// Whether the node is the guard of a case, as Python's `if_clause` is, which the grammar also uses
@@ -292,6 +312,7 @@ fn is_default_case(node: Node, source: &str, profile: &Profile) -> bool {
         .is_some_and(|guard| Some(guard) != pattern)
         || node
             .named_children(&mut cursor)
-            .any(|child| profile.chained_branches.contains(&child.kind()));
+            .any(|child| profile.chained_branches.contains(&child.kind()))
+        || has_bare_guard(node);
     (has_default_keyword || is_catch_all) && !has_guard
 }
