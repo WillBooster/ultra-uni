@@ -362,6 +362,11 @@ test.each([
   expect(body).toMatchObject({ result: { functionCount: 2, cyclomaticComplexity: 3 } });
 });
 
+test('counts a Kotlin secondary constructor with a block body as a function', async () => {
+  const { body } = await call('measure', 'kotlin', 'class A {\n  constructor(x: Int) : super(x) { }\n}\n');
+  expect(body).toMatchObject({ result: { functionCount: 1, cyclomaticComplexity: 2 } });
+});
+
 test('counts the equations of one Haskell definition as one function', async () => {
   const { body } = await call('measure', 'haskell', 'f 0 = 1\n-- | second clause\nf n = n\n\ng x = x\n');
   expect(body).toMatchObject({ result: { functionCount: 2, cyclomaticComplexity: 3 } });
