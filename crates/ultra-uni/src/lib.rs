@@ -82,7 +82,7 @@ pub fn format(
     let (_, tree) = parse(language, source)?;
     if tree
         .as_ref()
-        .is_some_and(|tree| tree.root_node().has_error())
+        .is_some_and(|tree| lint::has_syntax_errors(source, tree))
     {
         return Err(JsError::new("Cannot format code with syntax errors"));
     }

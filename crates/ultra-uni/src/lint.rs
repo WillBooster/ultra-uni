@@ -45,6 +45,14 @@ pub fn lint(source: &str, tree: Option<&Tree>) -> Vec<Diagnostic> {
     diagnostics
 }
 
+/// Whether `lint` reports a `syntax-error`. `Node::has_error` also counts invisible zero-width
+/// MISSING tokens that tree-sitter-kotlin-ng inserts into valid one-line class bodies.
+pub fn has_syntax_errors(source: &str, tree: &Tree) -> bool {
+    let mut diagnostics = Vec::new();
+    collect_syntax_errors(&LineIndex::new(source), tree.root_node(), &mut diagnostics);
+    !diagnostics.is_empty()
+}
+
 fn collect_syntax_errors(lines: &LineIndex, root: Node, diagnostics: &mut Vec<Diagnostic>) {
     walk(root, |node, _| {
         if !node.has_error() {

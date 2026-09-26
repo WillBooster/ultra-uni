@@ -543,6 +543,12 @@ test('formats trailing whitespace and blank lines, keeping them inside literals'
   expect(body).toEqual({ result: 's = """a  \nb"""\nt = 1\n' });
 });
 
+test('formats a Kotlin one-line class body that lint reports as clean', async () => {
+  const source = 'class A { val a: Int = 1 }\n';
+  expect(await call('lint', 'kotlin', source)).toEqual({ status: 200, body: { result: [] } });
+  expect(await call('format', 'kotlin', source)).toEqual({ status: 200, body: { result: source } });
+});
+
 test('refuses to format code with syntax errors', async () => {
   expect(await call('format', 'python', 'def f(:\n')).toEqual({
     status: 400,
