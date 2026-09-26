@@ -313,6 +313,12 @@ test.each([
     cyclomaticComplexity: 3,
   },
   {
+    construct: "Zig's orelse with an unreachable operand",
+    language: 'zig',
+    source: 'fn f(a: ?u32) u32 {\n    return a orelse unreachable;\n}\n',
+    cyclomaticComplexity: 3,
+  },
+  {
     construct: "Zig's orelse",
     language: 'zig',
     source: 'fn f(a: ?i32) i32 {\n    return a orelse 0;\n}\n',

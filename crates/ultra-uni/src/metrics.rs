@@ -236,8 +236,16 @@ impl<'a> ComplexityCounter<'a> {
             .logical_operators
             .iter()
             .find(|&&op| op == text)?;
+        // An operand can be an anonymous keyword such as Zig's `unreachable`, so the parent's
+        // `operator` field decides where the grammar provides one.
+        let is_binary_operator = node.parent().is_some_and(|parent| {
+            parent.child_by_field_name("operator") == Some(node)
+                && parent.child_by_field_name("left").is_some()
+                && parent.child_by_field_name("right").is_some()
+        });
         let is_operand = |sibling: Option<Node>| sibling.is_some_and(|sibling| sibling.is_named());
-        (is_operand(node.prev_sibling()) && is_operand(node.next_sibling())).then_some(*operator)
+        (is_binary_operator || is_operand(node.prev_sibling()) && is_operand(node.next_sibling()))
+            .then_some(*operator)
     }
 
     /// Whether an operand is a binary expression with the same operator, as in `a && b && c`.
