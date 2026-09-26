@@ -2,7 +2,7 @@ use serde::Serialize;
 use tree_sitter::{Node, Tree};
 
 use crate::language::Profile;
-use crate::tree::{next_code_sibling, prev_code_sibling, walk};
+use crate::tree::{first_code_child, next_code_sibling, prev_code_sibling, walk};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -212,7 +212,7 @@ impl ComplexityCounter<'_> {
                 self.cyclomatic += 1;
                 // Haskell's `guards` clause is itself a guard.
                 let guard = node.child_by_field_name("guard");
-                if guard.is_some() && guard == node.named_child(0) {
+                if guard.is_some() && guard == first_code_child(node) {
                     self.cognitive += 1;
                 }
             }
@@ -393,7 +393,7 @@ fn is_default_case(node: Node, source: &str, profile: &Profile) -> bool {
         .any(|child| !child.is_named() && matches!(child.kind(), "default" | "else" | "_"));
     let pattern = node
         .child_by_field_name("pattern")
-        .or_else(|| node.named_child(0));
+        .or_else(|| first_code_child(node));
     let is_catch_all = profile.wildcard_cases.contains(&node.kind())
         && pattern
             .is_some_and(|pattern| matches!(&source[pattern.byte_range()], "_" | "otherwise"));

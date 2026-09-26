@@ -35,3 +35,10 @@ pub fn next_code_sibling(node: Node) -> Option<Node> {
     std::iter::successors(node.next_sibling(), Node::next_sibling)
         .find(|sibling| !sibling.is_extra())
 }
+
+/// The first named child that is not an extra such as a comment, which is not code.
+pub fn first_code_child(node: Node) -> Option<Node> {
+    let mut cursor = node.walk();
+    node.named_children(&mut cursor)
+        .find(|child| !child.is_extra())
+}

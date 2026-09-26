@@ -500,6 +500,15 @@ test.each([
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 3 } });
 });
 
+test('does not count a C# discard case as a path when a comment precedes its pattern', async () => {
+  const { body } = await call(
+    'measure',
+    'csharp',
+    'class A { int F(int x) { switch (x) { case /*c*/ _: return 1; default: return 2; } } }\n'
+  );
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 2 } });
+});
+
 test('counts a JavaScript case labeled with the identifier _ as a path', async () => {
   const { body } = await call('measure', 'javascript', 'switch (x) {\n  case _:\n    f();\n}\n');
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 2 } });
