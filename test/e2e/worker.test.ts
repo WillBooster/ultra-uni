@@ -346,6 +346,15 @@ test('scores Haskell comprehension qualifiers as branches', async () => {
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 2, maxNestingDepth: 1 } });
 });
 
+test('scores C# query clauses as branches', async () => {
+  const { body } = await call(
+    'measure',
+    'csharp',
+    'class A { int[] F(int[] xs) => (from x in xs where x > 0 select x).ToArray(); }\n'
+  );
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 4, cognitiveComplexity: 2, maxNestingDepth: 1 } });
+});
+
 test('does not score the fallback of a Ruby case as an else branch', async () => {
   const { body } = await call('measure', 'ruby', 'def f(x)\n  case x\n  when 1\n    1\n  else\n    2\n  end\nend\n');
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 1 } });
