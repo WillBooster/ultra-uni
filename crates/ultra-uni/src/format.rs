@@ -81,6 +81,22 @@ fn is_concatenation(node: Node) -> bool {
 fn collect_value_ranges(source: &str, root: Node, ranges: &mut Vec<Range<usize>>) {
     walk(root, |node, _| {
         let kind = node.kind();
+        // PHP's grammar leaves the template text's whitespace after `?>` and before the first
+        // `<?php` outside every node.
+        if kind == "php_end_tag" {
+            let end = node.end_byte() + leading_whitespace(&source[node.end_byte()..]);
+            if end > node.end_byte() {
+                ranges.push(node.end_byte()..end);
+            }
+            return false;
+        }
+        if kind == "php_tag"
+            && node.start_byte() > 0
+            && leading_whitespace(source) == node.start_byte()
+        {
+            ranges.push(0..node.start_byte());
+            return false;
+        }
         // Anonymous tokens are keywords and punctuation, such as TypeScript's `string` type.
         let is_value = node.is_named()
             && is_literal_kind(kind)
@@ -101,14 +117,15 @@ fn collect_value_ranges(source: &str, root: Node, ranges: &mut Vec<Range<usize>>
                 .children(&mut cursor)
                 .any(|child| child.kind() == "end_tag")
         {
-            range.end += source[range.end..]
-                .bytes()
-                .take_while(u8::is_ascii_whitespace)
-                .count();
+            range.end += leading_whitespace(&source[range.end..]);
         }
         ranges.push(range);
         false
     });
+}
+
+fn leading_whitespace(text: &str) -> usize {
+    text.bytes().take_while(u8::is_ascii_whitespace).count()
 }
 
 /// HTML text outside `<pre>` and `<textarea>`, whose line-end whitespace is insignificant, unlike
