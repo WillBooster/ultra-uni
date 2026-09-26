@@ -30,7 +30,9 @@ pub fn format(source: &str, tree: Option<&Tree>) -> String {
 }
 
 pub struct Literals {
-    /// Byte ranges of the innermost literal nodes, in document order and disjoint.
+    /// Byte ranges of the innermost literal nodes and escape sequences, merged where they overlap
+    /// or touch, since a grammar may split one value into several pieces (Ruby's escaped space is
+    /// an `escape_sequence` between two contents). Sorted and disjoint.
     pub ranges: Vec<Range<usize>>,
     /// The end of the last literal when it has no closing delimiter and so runs to the end of the
     /// file: an unterminated Ruby heredoc, whose closing node is zero-width, or Ruby's `__END__`
@@ -74,7 +76,12 @@ pub fn trailing_whitespace(source: &str, literals: &[Range<usize>]) -> Vec<Range
 /// not hide the whitespace between their parts. Single-line nodes count too because some grammars
 /// split a multi-line literal into one node per line, as PHP does for heredocs.
 fn collect_literals(root: Node, literals: &mut Literals) {
+    let mut ranges = Vec::new();
     walk(root, |node, _| {
+        if node.kind().contains("escape_sequence") {
+            ranges.push(node.byte_range());
+            return false;
+        }
         let mut cursor = node.walk();
         let has_literal_child = node
             .named_children(&mut cursor)
@@ -83,11 +90,18 @@ fn collect_literals(root: Node, literals: &mut Literals) {
             let range = node.byte_range();
             let is_open = range.is_empty() || node.kind() == "uninterpreted";
             literals.open_end = is_open.then_some(range.end);
-            literals.ranges.push(range);
+            ranges.push(range);
             return false;
         }
         true
     });
+    ranges.sort_by_key(|range| range.start);
+    for range in ranges {
+        match literals.ranges.last_mut() {
+            Some(last) if range.start <= last.end => last.end = last.end.max(range.end),
+            _ => literals.ranges.push(range),
+        }
+    }
 }
 
 fn is_literal_kind(kind: &str) -> bool {
