@@ -533,6 +533,16 @@ test.each([
   expect(body).toEqual({ result: tree });
 });
 
+test('handles deeply nested code without breaking later calls', async () => {
+  const source = `let x = ${'['.repeat(20_000)}${']'.repeat(20_000)};\n`;
+  for (const operation of ['measure', 'lint', 'format']) {
+    const { status } = await call(operation, 'javascript', source);
+    expect(status).toBe(200);
+  }
+  const { body } = await call('measure', 'text', 'ok\n');
+  expect(body).toEqual({ result: { lines: { total: 1, code: 1, comment: 0, blank: 0 } } });
+});
+
 test('rejects an unsupported language', async () => {
   expect(await call('measure', 'cobol', '')).toEqual({
     status: 400,

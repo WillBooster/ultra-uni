@@ -2,6 +2,7 @@ use serde::Serialize;
 use tree_sitter::{Node, Tree};
 
 use crate::language::Profile;
+use crate::tree::walk;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -12,7 +13,8 @@ pub struct Metrics {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cyclomatic_complexity: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub cognitive_complexity: Option<u32>,
+    // Grows quadratically with nesting, so deeply nested input would overflow `u32`.
+    pub cognitive_complexity: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_nesting_depth: Option<u32>,
 }
@@ -45,7 +47,16 @@ pub fn measure(source: &str, tree: Option<&Tree>, profile: Option<&Profile>) -> 
         cognitive: 0,
         max_nesting_depth: 0,
     };
-    counter.visit(tree.root_node(), Nesting::default());
+    // `nestings[depth]` holds the nesting that the node last visited at `depth` gives its children.
+    let mut nestings: Vec<Nesting> = Vec::new();
+    walk(tree.root_node(), |node, depth| {
+        let outer = depth
+            .checked_sub(1)
+            .map_or_else(Nesting::default, |parent| nestings[parent]);
+        nestings.truncate(depth);
+        nestings.push(counter.visit(node, outer));
+        true
+    });
     Metrics {
         lines,
         function_count: Some(counter.function_count),
@@ -87,15 +98,18 @@ fn measure_lines(source: &str, tree: Option<&Tree>) -> LineMetrics {
     metrics
 }
 
-fn mark_lines(source: &str, node: Node, kinds: &mut [LineKind]) {
-    let is_comment = node.is_named()
-        && match node.kind() {
-            "haddock" => true,
-            // The embedded-template grammar used for JSP parses `<%-- --%>` as a directive.
-            "directive" | "output_directive" => source[node.start_byte()..].starts_with("<%--"),
-            kind => kind.contains("comment"),
-        };
-    if is_comment || node.child_count() == 0 {
+fn mark_lines(source: &str, root: Node, kinds: &mut [LineKind]) {
+    walk(root, |node, _| {
+        let is_comment = node.is_named()
+            && match node.kind() {
+                "haddock" => true,
+                // The embedded-template grammar used for JSP parses `<%-- --%>` as a directive.
+                "directive" | "output_directive" => source[node.start_byte()..].starts_with("<%--"),
+                kind => kind.contains("comment"),
+            };
+        if !is_comment && node.child_count() > 0 {
+            return true;
+        }
         let kind = if is_comment {
             LineKind::Comment
         } else {
@@ -108,12 +122,8 @@ fn mark_lines(source: &str, node: Node, kinds: &mut [LineKind]) {
                 kinds[row] = kind;
             }
         }
-        return;
-    }
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        mark_lines(source, child, kinds);
-    }
+        false
+    });
 }
 
 #[derive(Clone, Copy, Default)]
@@ -133,12 +143,13 @@ struct ComplexityCounter<'a> {
     profile: &'a Profile,
     function_count: u32,
     cyclomatic: u32,
-    cognitive: u32,
+    cognitive: u64,
     max_nesting_depth: u32,
 }
 
 impl ComplexityCounter<'_> {
-    fn visit(&mut self, node: Node, nesting: Nesting) {
+    /// Scores `node` and returns the nesting its children are in.
+    fn visit(&mut self, node: Node, nesting: Nesting) -> Nesting {
         let kind = node.kind();
         let profile = self.profile;
         let mut inner = nesting;
@@ -170,7 +181,7 @@ impl ComplexityCounter<'_> {
             self.cyclomatic += 1;
             // `else if` is scored by its `else` and continues the chain at the same level.
             if !follows_else(node) {
-                self.cognitive += 1 + nesting.cognitive;
+                self.cognitive += 1 + u64::from(nesting.cognitive);
                 inner.cognitive += 1;
                 inner.control += 1;
             }
@@ -179,7 +190,7 @@ impl ComplexityCounter<'_> {
                 self.cyclomatic += 1;
             }
         } else if profile.switches.contains(&kind) {
-            self.cognitive += 1 + nesting.cognitive;
+            self.cognitive += 1 + u64::from(nesting.cognitive);
             inner.cognitive += 1;
             inner.control += 1;
         } else if profile.cases.contains(&kind) {
@@ -197,10 +208,7 @@ impl ComplexityCounter<'_> {
             }
         }
         self.max_nesting_depth = self.max_nesting_depth.max(inner.control);
-        let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
-            self.visit(child, inner);
-        }
+        inner
     }
 }
 

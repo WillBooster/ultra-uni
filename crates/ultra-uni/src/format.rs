@@ -2,6 +2,8 @@ use std::ops::Range;
 
 use tree_sitter::{Node, Tree};
 
+use crate::tree::walk;
+
 /// Removes trailing whitespace (including the `\r` of CRLF) and trailing blank lines, and ends
 /// non-empty code with a single newline.
 pub fn format(source: &str, tree: Option<&Tree>) -> String {
@@ -54,18 +56,18 @@ pub fn trailing_whitespace(source: &str, literals: &[Range<usize>]) -> Vec<Range
 /// Collects the innermost literal nodes, so that containers such as a concatenation of strings do
 /// not hide the whitespace between their parts. Single-line nodes count too because some grammars
 /// split a multi-line literal into one node per line, as PHP does for heredocs.
-fn collect_literals(node: Node, literals: &mut Vec<Range<usize>>) {
-    let mut cursor = node.walk();
-    let has_literal_child = node
-        .named_children(&mut cursor)
-        .any(|child| is_literal_kind(child.kind()));
-    if is_literal_kind(node.kind()) && !has_literal_child {
-        literals.push(node.byte_range());
-        return;
-    }
-    for child in node.children(&mut cursor) {
-        collect_literals(child, literals);
-    }
+fn collect_literals(root: Node, literals: &mut Vec<Range<usize>>) {
+    walk(root, |node, _| {
+        let mut cursor = node.walk();
+        let has_literal_child = node
+            .named_children(&mut cursor)
+            .any(|child| is_literal_kind(child.kind()));
+        if is_literal_kind(node.kind()) && !has_literal_child {
+            literals.push(node.byte_range());
+            return false;
+        }
+        true
+    });
 }
 
 fn is_literal_kind(kind: &str) -> bool {

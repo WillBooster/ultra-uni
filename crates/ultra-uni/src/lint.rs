@@ -2,6 +2,7 @@ use serde::Serialize;
 use tree_sitter::{Node, Tree};
 
 use crate::format::{literal_ranges, trailing_whitespace};
+use crate::tree::walk;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -44,26 +45,25 @@ pub fn lint(source: &str, tree: Option<&Tree>) -> Vec<Diagnostic> {
     diagnostics
 }
 
-fn collect_syntax_errors(lines: &LineIndex, node: Node, diagnostics: &mut Vec<Diagnostic>) {
-    if !node.has_error() {
-        return;
-    }
-    let message = if node.is_error() {
-        "Unexpected syntax".to_owned()
-    } else if node.is_missing() {
-        format!("Missing {}", node.kind())
-    } else {
-        let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
-            collect_syntax_errors(lines, child, diagnostics);
+fn collect_syntax_errors(lines: &LineIndex, root: Node, diagnostics: &mut Vec<Diagnostic>) {
+    walk(root, |node, _| {
+        if !node.has_error() {
+            return false;
         }
-        return;
-    };
-    diagnostics.push(Diagnostic {
-        rule: "syntax-error",
-        message,
-        start: lines.position(node.start_byte()),
-        end: lines.position(node.end_byte()),
+        let message = if node.is_error() {
+            "Unexpected syntax".to_owned()
+        } else if node.is_missing() {
+            format!("Missing {}", node.kind())
+        } else {
+            return true;
+        };
+        diagnostics.push(Diagnostic {
+            rule: "syntax-error",
+            message,
+            start: lines.position(node.start_byte()),
+            end: lines.position(node.end_byte()),
+        });
+        false
     });
 }
 

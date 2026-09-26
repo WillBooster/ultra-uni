@@ -2,6 +2,7 @@ mod format;
 mod language;
 mod lint;
 mod metrics;
+mod tree;
 
 use serde::Serialize;
 use tree_sitter::{Parser, Tree};
