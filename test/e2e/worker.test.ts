@@ -548,6 +548,18 @@ test.each([
   expect(await call('format', 'ruby', source)).toEqual({ status: 200, body: { result: source } });
 });
 
+test.each([
+  {
+    construct: 'Rust raw string with leading whitespace',
+    language: 'rust',
+    source: 'fn f() {\n    let s = r#"  \r\nbb"#;\n}\n',
+  },
+  { construct: 'whitespace-only PHP heredoc body', language: 'php', source: '<?php\n$s = <<<EOT\n  \nEOT;\n' },
+])('keeps the value bytes of a $construct that no child node covers', async ({ language, source }) => {
+  expect(await call('lint', language, source)).toEqual({ status: 200, body: { result: [] } });
+  expect(await call('format', language, source)).toEqual({ status: 200, body: { result: source } });
+});
+
 test('keeps trailing whitespace that ends a multi-line literal', async () => {
   const source = 'const a =\n    \\\\hello  \n    \\\\world  \n;\n';
   const { body } = await call('format', 'zig', source);

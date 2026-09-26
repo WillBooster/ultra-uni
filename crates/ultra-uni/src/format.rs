@@ -30,9 +30,7 @@ pub fn format(source: &str, tree: Option<&Tree>) -> String {
 }
 
 pub struct Literals {
-    /// Byte ranges of the innermost literal nodes and escape sequences, merged where they overlap
-    /// or touch, since a grammar may split one value into several pieces (Ruby's escaped space is
-    /// an `escape_sequence` between two contents). Sorted and disjoint.
+    /// Byte ranges of the outermost literal nodes, in document order and disjoint.
     pub ranges: Vec<Range<usize>>,
     /// The end of the last literal when it has no closing delimiter and so runs to the end of the
     /// file: an unterminated Ruby heredoc, whose closing node is zero-width, or Ruby's `__END__`
@@ -72,36 +70,32 @@ pub fn trailing_whitespace(source: &str, literals: &[Range<usize>]) -> Vec<Range
     ranges
 }
 
-/// Collects the innermost literal nodes, so that containers such as a concatenation of strings do
-/// not hide the whitespace between their parts. Single-line nodes count too because some grammars
-/// split a multi-line literal into one node per line, as PHP does for heredocs.
+/// Kinds that join separate literals, whose parts are protected one by one because the whitespace
+/// between them is code.
+const CONCATENATIONS: &[&str] = &["concatenated_string", "chained_string", "string_array"];
+
+/// Collects the outermost literal nodes, because a grammar can leave value bytes outside every
+/// child node, such as the leading whitespace of a Rust raw string or a whitespace-only PHP heredoc
+/// body.
 fn collect_literals(source: &str, root: Node, literals: &mut Literals) {
-    let mut ranges = Vec::new();
     walk(root, |node, _| {
-        if node.kind().contains("escape_sequence") || is_preformatted_element(source, node) {
-            ranges.push(node.byte_range());
-            return false;
+        let kind = node.kind();
+        let is_value = is_literal_kind(kind) && !CONCATENATIONS.contains(&kind)
+            || is_preformatted_element(source, node);
+        if !is_value {
+            return true;
         }
-        let mut cursor = node.walk();
-        let has_literal_child = node
-            .named_children(&mut cursor)
-            .any(|child| is_literal_kind(child.kind()));
-        if is_literal_kind(node.kind()) && !has_literal_child {
-            let range = node.byte_range();
-            let is_open = range.is_empty() || node.kind() == "uninterpreted";
-            literals.open_end = is_open.then_some(range.end);
-            ranges.push(range);
-            return false;
-        }
-        true
+        let range = node.byte_range();
+        // An unterminated Ruby heredoc ends with a zero-width closing node.
+        let has_open_end = kind == "uninterpreted"
+            || node
+                .child(node.child_count().saturating_sub(1))
+                .is_some_and(|last| last.byte_range().is_empty())
+            || range.is_empty();
+        literals.open_end = has_open_end.then_some(range.end);
+        literals.ranges.push(range);
+        false
     });
-    ranges.sort_by_key(|range| range.start);
-    for range in ranges {
-        match literals.ranges.last_mut() {
-            Some(last) if range.start <= last.end => last.end = last.end.max(range.end),
-            _ => literals.ranges.push(range),
-        }
-    }
 }
 
 /// An HTML `<pre>` or `<textarea>` element, whose text keeps its whitespace; the grammar's `text`
