@@ -4,20 +4,26 @@ use tree_sitter::{Node, Tree};
 
 use crate::tree::walk;
 
-/// Removes trailing whitespace (including the `\r` of CRLF) and trailing blank lines, and ends
-/// non-empty code with a single newline.
+/// Removes trailing whitespace (including the `\r` of CRLF) and trailing blank lines outside
+/// literals, and ends non-empty code with a single newline unless a literal reaches the end.
 pub fn format(source: &str, tree: Option<&Tree>) -> String {
-    let mut formatted = String::with_capacity(source.len());
+    let literals = literal_ranges(tree);
+    // A literal can reach the end of the file, as an unterminated Ruby heredoc does without a syntax
+    // error, so the trailing blank run stops at the end of the last literal.
+    let trimmed_end = source.trim_end_matches(['\n', ' ', '\t', '\r']).len();
+    let content_end = trimmed_end.max(literals.last().map_or(0, |literal| literal.end));
+    let mut formatted = String::with_capacity(content_end + 1);
     let mut last = 0;
-    for range in trailing_whitespace(source, &literal_ranges(tree)) {
+    for range in trailing_whitespace(source, &literals) {
+        if range.start >= content_end {
+            break;
+        }
         formatted.push_str(&source[last..range.start]);
         last = range.end;
     }
-    formatted.push_str(&source[last..]);
-    // Valid code never ends inside a literal, so the trailing whitespace here is outside literals.
-    let trimmed_len = formatted.trim_end_matches(['\n', ' ', '\t', '\r']).len();
-    formatted.truncate(trimmed_len);
-    if !formatted.is_empty() {
+    formatted.push_str(&source[last..content_end]);
+    // A newline appended after a literal that reaches the end would become part of its value.
+    if !formatted.is_empty() && content_end == trimmed_end {
         formatted.push('\n');
     }
     formatted
