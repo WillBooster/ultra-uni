@@ -246,9 +246,11 @@ impl<'a> ComplexityCounter<'a> {
             .then_some(*operator)
     }
 
-    /// Whether an operand is a binary expression with the same operator, as in `a && b && c`.
+    /// Whether the operator continues a sequence of the same operator, as in `a && b && c`: an
+    /// adjacent operand contains it (nested chains) or an earlier sibling is it (flat chains such as
+    /// Dart's `??`).
     fn continues_logical_sequence(&self, node: Node, operator: &str) -> bool {
-        [node.prev_sibling(), node.next_sibling()]
+        let in_operand = [node.prev_sibling(), node.next_sibling()]
             .into_iter()
             .flatten()
             .any(|operand| {
@@ -256,7 +258,10 @@ impl<'a> ComplexityCounter<'a> {
                 operand
                     .children(&mut cursor)
                     .any(|child| self.logical_operator(child) == Some(operator))
-            })
+            });
+        let earlier_in_chain = std::iter::successors(node.prev_sibling(), Node::prev_sibling)
+            .any(|sibling| self.logical_operator(sibling) == Some(operator));
+        in_operand || earlier_in_chain
     }
 }
 

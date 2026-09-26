@@ -373,6 +373,14 @@ test.each([
   expect(body).toMatchObject({ result: { cognitiveComplexity: 3, maxNestingDepth: 2 } });
 });
 
+test.each([
+  { language: 'dart', source: 'var x = a ?? b ?? c;\n' },
+  { language: 'javascript', source: 'const x = a ?? b ?? c;\n' },
+])('scores a chain of the same coalescing operator as one sequence in $language', async ({ language, source }) => {
+  const { body } = await call('measure', language, source);
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 1 } });
+});
+
 test('scores Python comprehension clauses as branches', async () => {
   const { body } = await call('measure', 'python', 'ys = [x for x in xs if x]\n');
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 2, maxNestingDepth: 1 } });
