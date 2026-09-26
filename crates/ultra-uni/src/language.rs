@@ -306,7 +306,7 @@ const PHP: Profile = Profile {
     alternative_branches: &[],
     switches: &["switch_statement", "match_expression"],
     cases: &["case_statement", "match_conditional_expression"],
-    logical_operators: &["&&", "||", "and", "or", "??"],
+    logical_operators: &["&&", "||", "and", "or", "xor", "??"],
     operator_node: None,
 };
 
