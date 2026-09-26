@@ -28,7 +28,7 @@ syntaxTree('typescript', 'const x = 1;');
 // => '(program (lexical_declaration (variable_declarator name: (identifier) value: (number))))'
 ```
 
-Every function throws on an unsupported language.
+Every function throws on an unsupported language, and `syntaxTree` also throws for `text`, which has no grammar.
 
 Supported languages (`supportedLanguages()`): `c`, `cpp`, `csharp`, `css`, `dart`, `haskell`, `html`, `java`, `javascript`, `jsp`, `kotlin`, `php`, `python`, `ruby`, `rust`, `text`, `tsx`, `typescript`, and `zig`.
 
