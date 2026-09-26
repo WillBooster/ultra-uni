@@ -411,6 +411,17 @@ test.each([
 });
 
 test.each([
+  { language: 'haskell', source: 'f x = a > 0 && b > 0 && c > 0\n' },
+  { language: 'javascript', source: 'function f() {\n  return a > 0 && b > 0 && c > 0;\n}\n' },
+])(
+  'scores a chain of the same logical operator between comparisons as one sequence in $language',
+  async ({ language, source }) => {
+    const { body } = await call('measure', language, source);
+    expect(body).toMatchObject({ result: { cyclomaticComplexity: 4, cognitiveComplexity: 1 } });
+  }
+);
+
+test.each([
   {
     construct: 'braced',
     source: 'function f() {\n  if (c) a();\n  else {\n    for (;;) {\n      if (d) b();\n    }\n  }\n}\n',

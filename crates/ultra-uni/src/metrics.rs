@@ -270,7 +270,33 @@ impl<'a> ComplexityCounter<'a> {
             });
         let earlier_in_chain = std::iter::successors(node.prev_sibling(), Node::prev_sibling)
             .any(|sibling| self.logical_operator(sibling) == Some(operator));
-        in_operand || earlier_in_chain
+        in_operand || earlier_in_chain || self.follows_same_operator_in_spine(node, operator)
+    }
+
+    /// Whether the nearest logical operator up the right-operand spine is the same operator, for
+    /// grammars that chain operators in source order without precedence (Haskell parses
+    /// `a > 0 && b > 0` as `a > (0 && b > 0)`).
+    fn follows_same_operator_in_spine(&self, node: Node, operator: &str) -> bool {
+        if self.profile.operator_node.is_none() {
+            return false;
+        }
+        let mut current = node.parent();
+        while let Some(expression) = current {
+            let Some(parent) = expression
+                .parent()
+                .filter(|parent| parent.child_by_field_name("right_operand") == Some(expression))
+            else {
+                return false;
+            };
+            if let Some(found) = parent
+                .child_by_field_name("operator")
+                .and_then(|token| self.logical_operator(token))
+            {
+                return found == operator;
+            }
+            current = Some(parent);
+        }
+        false
     }
 }
 
