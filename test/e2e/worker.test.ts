@@ -519,12 +519,12 @@ test('does not count a C# discard case as a path when a comment precedes its pat
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 2 } });
 });
 
-test('does not count a parenthesized Python wildcard case as a path', async () => {
-  const { body } = await call(
-    'measure',
-    'python',
-    'def f(x):\n    match x:\n        case 1:\n            pass\n        case (_):\n            pass\n'
-  );
+test.each([
+  { construct: 'parenthesized', label: '(_)' },
+  { construct: 'commented and parenthesized', label: '(\n            # anything else\n            _\n        )' },
+])('does not count a $construct Python wildcard case as a path', async ({ label }) => {
+  const source = `def f(x):\n    match x:\n        case 1:\n            pass\n        case ${label}:\n            pass\n`;
+  const { body } = await call('measure', 'python', source);
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 3 } });
 });
 

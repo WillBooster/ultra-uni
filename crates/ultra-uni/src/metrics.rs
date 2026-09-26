@@ -373,16 +373,20 @@ fn is_else_branch(token: Node, profile: &Profile) -> bool {
     })
 }
 
-/// Strips the parentheses that group a pattern such as Python's `(_)`, which still matches anything.
-fn unparenthesize(mut text: &str) -> &str {
-    while let Some(inner) = text
-        .trim()
-        .strip_prefix('(')
-        .and_then(|rest| rest.strip_suffix(')'))
-    {
-        text = inner;
-    }
-    text.trim()
+/// Whether the pattern's only code token, besides grouping parentheses and extras such as
+/// comments, is the wildcard `_` or Haskell's `otherwise`, so `(_)` matches anything like `_`.
+fn is_wildcard_pattern(pattern: Node, source: &str) -> bool {
+    let mut tokens = Vec::new();
+    walk(pattern, |node, _| {
+        if node.is_extra() {
+            return false;
+        }
+        if node.child_count() == 0 && !matches!(node.kind(), "(" | ")") {
+            tokens.push(&source[node.byte_range()]);
+        }
+        true
+    });
+    matches!(tokens.as_slice(), ["_" | "otherwise"])
 }
 
 /// The construct an `else` token belongs to, looking through the node that wraps the keyword and
@@ -407,12 +411,7 @@ fn is_default_case(node: Node, source: &str, profile: &Profile) -> bool {
         .child_by_field_name("pattern")
         .or_else(|| first_code_child(node));
     let is_catch_all = profile.wildcard_cases.contains(&node.kind())
-        && pattern.is_some_and(|pattern| {
-            matches!(
-                unparenthesize(&source[pattern.byte_range()]),
-                "_" | "otherwise"
-            )
-        });
+        && pattern.is_some_and(|pattern| is_wildcard_pattern(pattern, source));
     // Haskell's `guards` names its own condition `guard`; that condition is the pattern here.
     let has_guard = node
         .child_by_field_name("guard")
