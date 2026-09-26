@@ -32,9 +32,8 @@ pub fn format(source: &str, tree: Option<&Tree>) -> String {
 pub struct Literals {
     /// Byte ranges of the outermost literal nodes, in document order and disjoint.
     pub ranges: Vec<Range<usize>>,
-    /// The end of the last literal when it has no closing delimiter and so runs to the end of the
-    /// file: an unterminated Ruby heredoc, whose closing node is zero-width, or Ruby's `__END__`
-    /// data.
+    /// The end of the last value region when it has no closing node and so runs to the end of the
+    /// file.
     pub open_end: Option<usize>,
 }
 
@@ -88,17 +87,20 @@ fn collect_literals(source: &str, root: Node, literals: &mut Literals) {
             return true;
         }
         let mut range = node.byte_range();
-        // An element without an end tag stops at its last child, before its trailing whitespace.
+        // A value region is open when its content runs to the end of the file without a closing
+        // node: an element without an end tag (which the grammar ends at its last child, before
+        // its trailing whitespace), an unterminated Ruby heredoc (whose closing node is zero-width),
+        // or Ruby's `__END__` data.
         let mut cursor = node.walk();
-        if kind == "element"
+        let is_unclosed_element = kind == "element"
             && !node
                 .children(&mut cursor)
-                .any(|child| child.kind() == "end_tag")
-        {
+                .any(|child| child.kind() == "end_tag");
+        if is_unclosed_element {
             range.end = source.len();
         }
-        // An unterminated Ruby heredoc ends with a zero-width closing node.
-        let has_open_end = kind == "uninterpreted"
+        let has_open_end = is_unclosed_element
+            || kind == "uninterpreted"
             || node
                 .child(node.child_count().saturating_sub(1))
                 .is_some_and(|last| last.byte_range().is_empty())

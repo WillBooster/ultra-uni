@@ -507,6 +507,11 @@ test.each([
   { construct: 'HTML script body', language: 'html', source: '<script>\nvar s = "a  \nb";\n</script>\n' },
   { construct: 'HTML pre text', language: 'html', source: '<pre>\nhello   \n</pre>\n' },
   { construct: 'HTML pre element without an end tag', language: 'html', source: '<pre>x  \n' },
+  {
+    construct: 'HTML textarea element without an end tag or a final newline',
+    language: 'html',
+    source: '<textarea>x  ',
+  },
   { construct: 'HTML attribute value', language: 'html', source: '<a title="a  \nb">x</a>\n' },
   { construct: 'JSP scriptlet', language: 'jsp', source: '<%\nString s = "a  \nb";\n%>\n' },
   { construct: 'PHP template text', language: 'php', source: '<p>\nhello   \n</p>\n' },

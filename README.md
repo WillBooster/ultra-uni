@@ -46,7 +46,7 @@ CSS, HTML, JSP, and text have no functions or control flow, so their complexity 
 
 `lint` reports syntax errors (`syntax-error`) and trailing spaces and tabs outside value regions (`trailing-whitespace`): literals, Ruby's `__END__` data, HTML attribute values and `<pre>`, `<textarea>`, `<script>`, and `<style>` contents, the template text of JSP and PHP files, and the code embedded in JSP templates, whose inner literals are not parsed. Positions are 1-based, with columns counted in UTF-16 code units like JavaScript string indices.
 
-`format` removes trailing whitespace and trailing blank lines outside value regions, converts CRLF line endings outside them to LF, and ends non-empty code with a newline unless the code ends inside an open value region (such as a Ruby heredoc whose terminator line has no newline, or `__END__` data). It never changes the content of a value region. It throws when the code has syntax errors.
+`format` removes trailing whitespace and trailing blank lines outside value regions, converts CRLF line endings outside them to LF, and ends non-empty code with a newline unless the code ends inside an open value region (such as a Ruby heredoc whose terminator line has no newline, `__END__` data, or an unclosed `<pre>`). It never changes the content of a value region. It throws when the code has syntax errors.
 
 ## Development
 
