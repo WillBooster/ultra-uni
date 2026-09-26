@@ -527,10 +527,16 @@ test.each([
   expect(await call('format', language, source)).toEqual({ status: 200, body: { result: source } });
 });
 
-test('formats trailing whitespace between the parts of a string concatenation', async () => {
-  const { body } = await call('format', 'python', 'x = ("a"   \n     "b")\n');
-  expect(body).toEqual({ result: 'x = ("a"\n     "b")\n' });
-});
+test.each([
+  { language: 'python', source: 'x = ("a"   \n     "b")\n', formatted: 'x = ("a"\n     "b")\n' },
+  { language: 'dart', source: 'var s = "a"   \n    "b";\n', formatted: 'var s = "a"\n    "b";\n' },
+])(
+  'formats trailing whitespace between the parts of a $language string concatenation',
+  async ({ formatted, language, source }) => {
+    const { body } = await call('format', language, source);
+    expect(body).toEqual({ result: formatted });
+  }
+);
 
 test.each([
   { language: 'haskell', source: 's = [r|\nhello   \nworld|]\n' },

@@ -61,9 +61,19 @@ pub fn trailing_whitespace(source: &str, values: &[Range<usize>]) -> Vec<Range<u
     ranges
 }
 
-/// Kinds that join separate literals, whose parts are protected one by one because the whitespace
-/// between them is code.
-const CONCATENATIONS: &[&str] = &["concatenated_string", "chained_string", "string_array"];
+/// Whether the node joins separate literals, whose parts are protected one by one because the
+/// whitespace between them is code. Dart puts adjacent literals in one `string_literal` whose named
+/// children are all quoted literals, while other grammars' `string_literal` holds fragments.
+fn is_concatenation(node: Node) -> bool {
+    let mut cursor = node.walk();
+    matches!(
+        node.kind(),
+        "concatenated_string" | "chained_string" | "string_array"
+    ) || node.named_child_count() > 1
+        && node
+            .named_children(&mut cursor)
+            .all(|child| child.kind().contains("string_literal"))
+}
 
 /// Collects the outermost value nodes, because a grammar can leave value bytes outside every
 /// child node, such as the leading whitespace of a Rust raw string or a whitespace-only PHP heredoc
@@ -71,7 +81,7 @@ const CONCATENATIONS: &[&str] = &["concatenated_string", "chained_string", "stri
 fn collect_value_ranges(source: &str, root: Node, ranges: &mut Vec<Range<usize>>) {
     walk(root, |node, _| {
         let kind = node.kind();
-        let is_value = is_literal_kind(kind) && !CONCATENATIONS.contains(&kind)
+        let is_value = is_literal_kind(kind) && !is_concatenation(node)
             // An escaped space is a value byte even where no value node encloses it.
             || kind.contains("escape_sequence")
             || is_preformatted_element(source, node);
