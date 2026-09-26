@@ -337,9 +337,17 @@ test('scores each non-default Haskell guard clause as a guard', async () => {
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 4, cognitiveComplexity: 2 } });
 });
 
-test('does not score a Haskell operator section as a logical operator', async () => {
-  const { body } = await call('measure', 'haskell', 'f = foldr (&&) True\n');
-  expect(body).toMatchObject({ result: { cyclomaticComplexity: 1, cognitiveComplexity: 0 } });
+test.each([
+  { construct: 'a C++ rvalue reference', language: 'cpp', source: 'void f(int&& x) {}\n', cyclomaticComplexity: 2 },
+  {
+    construct: 'a Haskell operator section',
+    language: 'haskell',
+    source: 'f = foldr (&&) True\n',
+    cyclomaticComplexity: 1,
+  },
+])('does not score $construct as a logical operator', async ({ cyclomaticComplexity, language, source }) => {
+  const { body } = await call('measure', language, source);
+  expect(body).toMatchObject({ result: { cyclomaticComplexity, cognitiveComplexity: 0 } });
 });
 
 test('scores Python comprehension clauses as branches', async () => {
@@ -398,7 +406,6 @@ test.each([
   },
   { language: 'haskell', source: 'f x = case x of\n  1 -> 1\n  _ -> 0\n', functionCount: 1, cyclomaticComplexity: 3 },
   { language: 'ruby', source: 'f = ->(x) { x }\n', functionCount: 1, cyclomaticComplexity: 2 },
-  { language: 'cpp', source: 'void f(int&& x) {}\n', functionCount: 1, cyclomaticComplexity: 2 },
   {
     language: 'csharp',
     source: 'abstract class A { public int X { get; set; } abstract int G(); }\n',
