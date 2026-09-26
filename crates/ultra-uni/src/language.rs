@@ -194,7 +194,7 @@ const DART: Profile = Profile {
 const HASKELL: Profile = Profile {
     functions: &["function", "lambda", "lambda_case"],
     optional_body_functions: &[],
-    branches: &["conditional"],
+    branches: &["conditional", "generator"],
     chained_branches: &[],
     alternative_branches: &[],
     switches: &["case", "multi_way_if"],

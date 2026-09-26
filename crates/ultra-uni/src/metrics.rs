@@ -177,7 +177,7 @@ impl ComplexityCounter<'_> {
         {
             self.cyclomatic += 1;
             self.cognitive += 1;
-        } else if profile.branches.contains(&kind) {
+        } else if profile.branches.contains(&kind) || is_comprehension_filter(node) {
             self.cyclomatic += 1;
             // `else if` is scored by its `else` and continues the chain at the same level.
             if !follows_else(node) {
@@ -244,6 +244,15 @@ impl<'a> ComplexityCounter<'a> {
                     .any(|child| self.logical_operator(child) == Some(operator))
             })
     }
+}
+
+/// Haskell's grammar names a list comprehension filter `boolean`, as it does a guard's condition,
+/// which its `guards` case already scores.
+fn is_comprehension_filter(node: Node) -> bool {
+    node.kind() == "boolean"
+        && node
+            .parent()
+            .is_some_and(|parent| parent.kind() == "qualifiers")
 }
 
 /// Whether a case has a guard that the grammar does not wrap in a node of its own: a Rust match
