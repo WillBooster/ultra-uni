@@ -89,6 +89,9 @@ pub fn format(
         return Err(JsError::new("Cannot format code with syntax errors"));
     }
     let formatted = format::format(language, source, tree.as_ref());
+    if formatted == source {
+        return Ok(formatted);
+    }
     // Whitespace can change a parse, as a final newline does after Ruby's `x = y&`, so the output
     // must stay free of the syntax errors `lint` reports.
     let (_, formatted_tree) = parse(language, &formatted)?;
