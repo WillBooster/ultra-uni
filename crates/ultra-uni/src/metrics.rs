@@ -194,7 +194,7 @@ impl ComplexityCounter<'_> {
         {
             self.cyclomatic += 1;
             // `else if` is scored by its `else` and continues the chain at the same level.
-            if !follows_else(node) {
+            if !follows_else(node, profile) {
                 self.cognitive += 1 + u64::from(nesting.cognitive);
                 inner.cognitive += 1;
                 inner.control += 1;
@@ -351,14 +351,15 @@ fn is_function_type(node: Node) -> bool {
 
 /// Whether the branch is the `if` of an `else if`: it follows an `else` token and has the kind of
 /// the conditional owning that `else`, so a loop used as an unbraced `else` body is not one.
-fn follows_else(node: Node) -> bool {
+fn follows_else(node: Node, profile: &Profile) -> bool {
     let Some(token) = node
         .prev_sibling()
         .filter(|sibling| !sibling.is_named() && sibling.kind() == "else")
     else {
         return false;
     };
-    else_owner(token).is_some_and(|owner| owner.kind() == node.kind())
+    is_else_branch(token, profile)
+        && else_owner(token).is_some_and(|owner| owner.kind() == node.kind())
 }
 
 /// Excludes `else` tokens that do not open a branch of their own: the fallback arm of a switch

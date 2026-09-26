@@ -432,6 +432,14 @@ test.each([
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 3, maxNestingDepth: 1 } });
 });
 
+test.each([
+  { language: 'python', source: 'v = a if b else c if d else e\n' },
+  { language: 'javascript', source: 'const v = a ? b : c ? d : e;\n' },
+])('nests a chained conditional expression in $language', async ({ language, source }) => {
+  const { body } = await call('measure', language, source);
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 3, maxNestingDepth: 2 } });
+});
+
 test('scores Python comprehension clauses as branches', async () => {
   const { body } = await call('measure', 'python', 'ys = [x for x in xs if x]\n');
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 2, maxNestingDepth: 1 } });
