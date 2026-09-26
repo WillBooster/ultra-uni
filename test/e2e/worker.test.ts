@@ -256,77 +256,59 @@ test.each([
     construct: 'a guarded C# discard case',
     language: 'csharp',
     source: 'class A { int F(int x) { switch (x) { case _ when x > 0: return 1; default: return 2; } } }\n',
-    cyclomaticComplexity: 4,
   },
   {
     construct: 'a guarded Python wildcard case',
     language: 'python',
     source: 'def f(x):\n    match x:\n        case _ if x:\n            pass\n',
-    cyclomaticComplexity: 4,
   },
   {
     construct: 'a guarded Rust wildcard arm',
     language: 'rust',
     source: 'fn f(x: i32) -> i32 { match x { _ if x > 0 => 1, _ => 0 } }\n',
-    cyclomaticComplexity: 4,
   },
   {
     construct: 'a guarded Dart wildcard case',
     language: 'dart',
     source: 'int f(int x) { switch (x) { case _ when x > 0: return 1; default: return 2; } }\n',
-    cyclomaticComplexity: 4,
   },
   {
     construct: 'a guarded Haskell wildcard alternative',
     language: 'haskell',
     source: 'f x = case x of\n  _ | x > 0 -> 1\n  _ -> 0\n',
-    cyclomaticComplexity: 4,
   },
   {
     construct: 'a Dart if-case guard',
     language: 'dart',
     source: 'int f(int x) { if (x case int n when n > 0) { return 1; } return 0; }\n',
-    cyclomaticComplexity: 4,
-  },
-  {
-    construct: 'a Haskell lambda-cases expression',
-    language: 'haskell',
-    source: 'f = \\cases\n  1 -> 1\n  2 -> 2\n',
-    cyclomaticComplexity: 4,
   },
   {
     construct: 'a C# exception filter',
     language: 'csharp',
     source: 'class A { int F(int x) { try { return 1; } catch (System.Exception e) when (x > 0) { return 2; } } }\n',
-    cyclomaticComplexity: 4,
   },
-  {
-    construct: 'a Rust let-else',
-    language: 'rust',
-    source: 'fn f() { let Some(x) = opt else { return }; }\n',
-    cyclomaticComplexity: 3,
-  },
-  {
-    construct: "Kotlin's elvis operator",
-    language: 'kotlin',
-    source: 'fun f(a: Int?, b: Int): Int = a ?: b\n',
-    cyclomaticComplexity: 3,
-  },
+])('scores $construct as its construct plus a guard', async ({ language, source }) => {
+  const { body } = await call('measure', language, source);
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 4 } });
+});
+
+test.each([
+  { construct: 'a Rust let-else', language: 'rust', source: 'fn f() { let Some(x) = opt else { return }; }\n' },
+  { construct: "Kotlin's elvis operator", language: 'kotlin', source: 'fun f(a: Int?, b: Int): Int = a ?: b\n' },
   {
     construct: "Zig's orelse with an unreachable operand",
     language: 'zig',
     source: 'fn f(a: ?u32) u32 {\n    return a orelse unreachable;\n}\n',
-    cyclomaticComplexity: 3,
   },
-  {
-    construct: "Zig's orelse",
-    language: 'zig',
-    source: 'fn f(a: ?i32) i32 {\n    return a orelse 0;\n}\n',
-    cyclomaticComplexity: 3,
-  },
-])('scores $construct', async ({ cyclomaticComplexity, language, source }) => {
+  { construct: "Zig's orelse", language: 'zig', source: 'fn f(a: ?i32) i32 {\n    return a orelse 0;\n}\n' },
+])('scores $construct as one decision path', async ({ language, source }) => {
   const { body } = await call('measure', language, source);
-  expect(body).toMatchObject({ result: { cyclomaticComplexity } });
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 3 } });
+});
+
+test('counts a Haskell lambda-cases expression as a function with two alternatives', async () => {
+  const { body } = await call('measure', 'haskell', 'f = \\cases\n  1 -> 1\n  2 -> 2\n');
+  expect(body).toMatchObject({ result: { functionCount: 1, cyclomaticComplexity: 4 } });
 });
 
 test.each([
