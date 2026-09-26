@@ -161,6 +161,9 @@ impl ComplexityCounter<'_> {
         } else if !node.is_named() {
             if kind == "else" && is_else_branch(node, profile) {
                 self.cognitive += 1;
+            } else if is_when_guard(node) {
+                self.cyclomatic += 1;
+                self.cognitive += 1;
             }
         } else if profile.functions.contains(&kind)
             && !is_function_type(node)
@@ -202,7 +205,7 @@ impl ComplexityCounter<'_> {
                     self.cognitive += 1;
                 }
             }
-            if has_bare_guard(node) {
+            if has_condition_guard(node) {
                 self.cyclomatic += 1;
                 self.cognitive += 1;
             }
@@ -255,18 +258,16 @@ fn is_comprehension_filter(node: Node) -> bool {
             .is_some_and(|parent| parent.kind() == "qualifiers")
 }
 
-/// Whether a case has a guard that the grammar does not wrap in a node of its own: a Rust match
-/// arm's pattern `condition` or Dart's `when` clause.
-fn has_bare_guard(case: Node) -> bool {
-    let mut cursor = case.walk();
+/// Whether a Rust match arm's pattern carries an `if` guard in its `condition` field.
+fn has_condition_guard(case: Node) -> bool {
     case.child_by_field_name("pattern")
         .is_some_and(|pattern| pattern.child_by_field_name("condition").is_some())
-        || case
-            .children(&mut cursor)
-            // Ruby's `when` clause starts with the keyword instead.
-            .any(|child| {
-                !child.is_named() && child.kind() == "when" && child.prev_sibling().is_some()
-            })
+}
+
+/// Whether the token is the `when` of a Dart pattern guard, which the grammar leaves unwrapped in
+/// the `if` or `case` holding the pattern. Other grammars' `when` keywords start their node.
+fn is_when_guard(token: Node) -> bool {
+    !token.is_named() && token.kind() == "when" && token.prev_sibling().is_some()
 }
 
 /// Whether the node is the guard of a case, as Python's `if_clause` is, which the grammar also uses
@@ -335,7 +336,10 @@ fn is_default_case(node: Node, source: &str, profile: &Profile) -> bool {
         || node
             .named_children(&mut cursor)
             .any(|child| profile.chained_branches.contains(&child.kind()))
-        || has_bare_guard(node)
+        || has_condition_guard(node)
+        || node
+            .children(&mut cursor)
+            .any(|child| is_when_guard(child))
         // A Haskell alternative keeps its guards in its `match`.
         || node
             .child_by_field_name("match")

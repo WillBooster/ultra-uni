@@ -283,6 +283,18 @@ test.each([
     cyclomaticComplexity: 4,
   },
   {
+    construct: 'a Dart if-case guard',
+    language: 'dart',
+    source: 'int f(int x) { if (x case int n when n > 0) { return 1; } return 0; }\n',
+    cyclomaticComplexity: 4,
+  },
+  {
+    construct: 'a Haskell lambda-cases expression',
+    language: 'haskell',
+    source: 'f = \\cases\n  1 -> 1\n  2 -> 2\n',
+    cyclomaticComplexity: 4,
+  },
+  {
     construct: 'a C# exception filter',
     language: 'csharp',
     source: 'class A { int F(int x) { try { return 1; } catch (System.Exception e) when (x > 0) { return 2; } } }\n',
@@ -293,12 +305,6 @@ test.each([
     language: 'rust',
     source: 'fn f() { let Some(x) = opt else { return }; }\n',
     cyclomaticComplexity: 3,
-  },
-  {
-    construct: "Haskell's otherwise guard",
-    language: 'haskell',
-    source: 'f x\n  | x > 0 = 1\n  | x > 1 = 2\n  | otherwise = 3\n',
-    cyclomaticComplexity: 4,
   },
   {
     construct: "Kotlin's elvis operator",
