@@ -161,6 +161,11 @@ impl ComplexityCounter<'_> {
                 inner.cognitive += 1;
             }
             inner.function += 1;
+        } else if profile.chained_branches.contains(&kind)
+            || (profile.branches.contains(&kind) && is_guard(node))
+        {
+            self.cyclomatic += 1;
+            self.cognitive += 1;
         } else if profile.branches.contains(&kind) {
             self.cyclomatic += 1;
             // `else if` is scored by its `else` and continues the chain at the same level.
@@ -169,9 +174,6 @@ impl ComplexityCounter<'_> {
                 inner.cognitive += 1;
                 inner.control += 1;
             }
-        } else if profile.chained_branches.contains(&kind) {
-            self.cyclomatic += 1;
-            self.cognitive += 1;
         } else if profile.alternative_branches.contains(&kind) {
             if node.child_by_field_name("alternative").is_some() {
                 self.cyclomatic += 1;
@@ -225,6 +227,14 @@ impl<'a> ComplexityCounter<'a> {
     }
 }
 
+/// Whether the node is the guard of a case, as Python's `if_clause` is, which the grammar also uses
+/// for comprehension filters.
+fn is_guard(node: Node) -> bool {
+    node.parent()
+        .and_then(|parent| parent.child_by_field_name("guard"))
+        .is_some_and(|guard| guard == node)
+}
+
 fn has_body(node: Node) -> bool {
     let mut cursor = node.walk();
     node.child_by_field_name("body").is_some()
@@ -266,13 +276,17 @@ fn is_default_case(node: Node, source: &str, profile: &Profile) -> bool {
     let has_default_keyword = node
         .children(&mut cursor)
         .any(|child| !child.is_named() && matches!(child.kind(), "default" | "else" | "_"));
-    let has_guard = node
-        .named_children(&mut cursor)
-        .any(|child| profile.chained_branches.contains(&child.kind()));
     let pattern = node
         .child_by_field_name("pattern")
         .or_else(|| node.named_child(0));
     let is_catch_all =
         pattern.is_some_and(|pattern| matches!(&source[pattern.byte_range()], "_" | "otherwise"));
+    // Haskell's `guards` names its own condition `guard`; that condition is the pattern here.
+    let has_guard = node
+        .child_by_field_name("guard")
+        .is_some_and(|guard| Some(guard) != pattern)
+        || node
+            .named_children(&mut cursor)
+            .any(|child| profile.chained_branches.contains(&child.kind()));
     (has_default_keyword || is_catch_all) && !has_guard
 }

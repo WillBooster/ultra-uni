@@ -259,6 +259,12 @@ test.each([
     cyclomaticComplexity: 4,
   },
   {
+    construct: 'a guarded Python wildcard case',
+    language: 'python',
+    source: 'def f(x):\n    match x:\n        case _ if x:\n            pass\n',
+    cyclomaticComplexity: 4,
+  },
+  {
     construct: 'a C# exception filter',
     language: 'csharp',
     source: 'class A { int F(int x) { try { return 1; } catch (System.Exception e) when (x > 0) { return 2; } } }\n',
