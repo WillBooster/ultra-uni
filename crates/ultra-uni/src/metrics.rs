@@ -374,8 +374,9 @@ fn is_else_branch(token: Node, profile: &Profile) -> bool {
 }
 
 /// Whether the pattern's only code token, besides grouping parentheses and extras such as
-/// comments, is the wildcard `_` or Haskell's `otherwise`, so `(_)` matches anything like `_`.
-fn is_wildcard_pattern(pattern: Node, source: &str) -> bool {
+/// comments, is the wildcard `_` or, in a Haskell guard, `otherwise`, so `(_)` matches anything
+/// like `_`; elsewhere `otherwise` is an ordinary name.
+fn is_wildcard_pattern(pattern: Node, source: &str, is_guard_clause: bool) -> bool {
     let mut tokens = Vec::new();
     walk(pattern, |node, _| {
         if node.is_extra() {
@@ -386,7 +387,11 @@ fn is_wildcard_pattern(pattern: Node, source: &str) -> bool {
         }
         true
     });
-    matches!(tokens.as_slice(), ["_" | "otherwise"])
+    match tokens.as_slice() {
+        ["_"] => true,
+        ["otherwise"] => is_guard_clause,
+        _ => false,
+    }
 }
 
 /// The construct an `else` token belongs to, looking through the node that wraps the keyword and
@@ -413,7 +418,7 @@ fn is_default_case(node: Node, source: &str, profile: &Profile) -> bool {
     let is_catch_all = profile.wildcard_cases.contains(&node.kind())
         && pattern.is_some_and(|pattern| {
             // A comma after the pattern makes the label a sequence, as in Python's `case _,:`.
-            is_wildcard_pattern(pattern, source)
+            is_wildcard_pattern(pattern, source, node.kind() == "guards")
                 && next_code_sibling(pattern).is_none_or(|next| next.kind() != ",")
         });
     // Haskell's `guards` names its own condition `guard`; that condition is the pattern here.

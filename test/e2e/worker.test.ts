@@ -537,6 +537,15 @@ test('counts a Python one-element sequence case as a path', async () => {
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 4 } });
 });
 
+test('counts a Java case labeled with a constant named otherwise as a path', async () => {
+  const { body } = await call(
+    'measure',
+    'java',
+    'class A { int f(int x) { switch (x) { case otherwise: return 1; default: return 2; } } }\n'
+  );
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 3 } });
+});
+
 test('counts a JavaScript case labeled with the identifier _ as a path', async () => {
   const { body } = await call('measure', 'javascript', 'switch (x) {\n  case _:\n    f();\n}\n');
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 2 } });
