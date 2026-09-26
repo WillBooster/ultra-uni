@@ -47,7 +47,8 @@ pub fn supported_languages() -> Vec<String> {
 /// Parses `source` and returns its syntax tree as an S-expression.
 #[wasm_bindgen(js_name = syntaxTree)]
 pub fn syntax_tree(
-    #[wasm_bindgen(unchecked_param_type = "Language")] language: &str,
+    // Any string, as before `Language` existed, so existing typed callers still compile.
+    #[wasm_bindgen(unchecked_param_type = "Language | (string & {})")] language: &str,
     source: &str,
 ) -> Result<String, JsError> {
     let (_, tree) = parse(language, source)?;

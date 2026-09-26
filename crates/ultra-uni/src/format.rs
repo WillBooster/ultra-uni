@@ -81,7 +81,8 @@ fn is_concatenation(node: Node) -> bool {
 fn collect_value_ranges(source: &str, root: Node, ranges: &mut Vec<Range<usize>>) {
     walk(root, |node, _| {
         let kind = node.kind();
-        let is_value = is_literal_kind(kind) && !is_concatenation(node)
+        // Anonymous tokens are keywords and punctuation, such as TypeScript's `string` type.
+        let is_value = node.is_named() && is_literal_kind(kind) && !is_concatenation(node)
             // An escaped space is a value byte even where no value node encloses it.
             || kind.contains("escape_sequence")
             || is_preformatted_element(source, node);

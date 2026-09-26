@@ -527,6 +527,11 @@ test.each([
   expect(await call('format', language, source)).toEqual({ status: 200, body: { result: source } });
 });
 
+test('ends TypeScript code with a string type keyword with a newline', async () => {
+  const { body } = await call('format', 'typescript', 'type A = string');
+  expect(body).toEqual({ result: 'type A = string\n' });
+});
+
 test.each([
   { language: 'python', source: 'x = ("a"   \n     "b")\n', formatted: 'x = ("a"\n     "b")\n' },
   { language: 'dart', source: 'var s = "a"   \n    "b";\n', formatted: 'var s = "a"\n    "b";\n' },
