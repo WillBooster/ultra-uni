@@ -172,11 +172,15 @@ impl ComplexityCounter<'_> {
         } else if profile.chained_branches.contains(&kind) {
             self.cyclomatic += 1;
             self.cognitive += 1;
+        } else if profile.alternative_branches.contains(&kind) {
+            if node.child_by_field_name("alternative").is_some() {
+                self.cyclomatic += 1;
+            }
         } else if profile.switches.contains(&kind) {
             self.cognitive += 1 + nesting.cognitive;
             inner.cognitive += 1;
             inner.control += 1;
-        } else if profile.cases.contains(&kind) && !is_default_case(node, self.source) {
+        } else if profile.cases.contains(&kind) && !is_default_case(node, self.source, profile) {
             self.cyclomatic += 1;
         }
         self.max_nesting_depth = self.max_nesting_depth.max(inner.control);
@@ -255,15 +259,20 @@ fn is_else_branch(token: Node, profile: &Profile) -> bool {
     })
 }
 
-/// A default case is marked by a `default` or `else` keyword, or has the wildcard `_` as its
-/// entire pattern.
-fn is_default_case(node: Node, source: &str) -> bool {
+/// A default case is marked by a `default` or `else` keyword, or has the wildcard `_` (or Haskell's
+/// `otherwise` guard) as its entire pattern, and carries no guard.
+fn is_default_case(node: Node, source: &str, profile: &Profile) -> bool {
     let mut cursor = node.walk();
     let has_default_keyword = node
         .children(&mut cursor)
         .any(|child| !child.is_named() && matches!(child.kind(), "default" | "else" | "_"));
+    let has_guard = node
+        .named_children(&mut cursor)
+        .any(|child| profile.chained_branches.contains(&child.kind()));
     let pattern = node
         .child_by_field_name("pattern")
         .or_else(|| node.named_child(0));
-    has_default_keyword || pattern.is_some_and(|pattern| &source[pattern.byte_range()] == "_")
+    let is_catch_all =
+        pattern.is_some_and(|pattern| matches!(&source[pattern.byte_range()], "_" | "otherwise"));
+    (has_default_keyword || is_catch_all) && !has_guard
 }

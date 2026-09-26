@@ -251,6 +251,48 @@ test.each(Object.entries(equivalentPrograms))(
   }
 );
 
+test.each([
+  {
+    construct: 'a guarded C# discard case',
+    language: 'csharp',
+    source: 'class A { int F(int x) { switch (x) { case _ when x > 0: return 1; default: return 2; } } }\n',
+    cyclomaticComplexity: 4,
+  },
+  {
+    construct: 'a C# exception filter',
+    language: 'csharp',
+    source: 'class A { int F(int x) { try { return 1; } catch (System.Exception e) when (x > 0) { return 2; } } }\n',
+    cyclomaticComplexity: 4,
+  },
+  {
+    construct: 'a Rust let-else',
+    language: 'rust',
+    source: 'fn f() { let Some(x) = opt else { return }; }\n',
+    cyclomaticComplexity: 3,
+  },
+  {
+    construct: "Haskell's otherwise guard",
+    language: 'haskell',
+    source: 'f x\n  | x > 0 = 1\n  | x > 1 = 2\n  | otherwise = 3\n',
+    cyclomaticComplexity: 4,
+  },
+  {
+    construct: "Kotlin's elvis operator",
+    language: 'kotlin',
+    source: 'fun f(a: Int?, b: Int): Int = a ?: b\n',
+    cyclomaticComplexity: 3,
+  },
+  {
+    construct: "Zig's orelse",
+    language: 'zig',
+    source: 'fn f(a: ?i32) i32 {\n    return a orelse 0;\n}\n',
+    cyclomaticComplexity: 3,
+  },
+])('scores $construct', async ({ cyclomaticComplexity, language, source }) => {
+  const { body } = await call('measure', language, source);
+  expect(body).toMatchObject({ result: { cyclomaticComplexity } });
+});
+
 test('does not score a Haskell operator section as a logical operator', async () => {
   const { body } = await call('measure', 'haskell', 'f = foldr (&&) True\n');
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 1, cognitiveComplexity: 0 } });
