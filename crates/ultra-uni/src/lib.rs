@@ -74,7 +74,8 @@ pub fn lint(
     to_js(&lint::lint(language, source, tree.as_ref()))
 }
 
-/// Throws on syntax errors, where whitespace may belong to an unterminated literal.
+/// Throws on syntax errors, where whitespace may belong to an unterminated literal, and returns
+/// `source` unchanged when formatting would introduce one.
 #[wasm_bindgen]
 pub fn format(
     #[wasm_bindgen(unchecked_param_type = "Language")] language: &str,
@@ -87,7 +88,18 @@ pub fn format(
     {
         return Err(JsError::new("Cannot format code with syntax errors"));
     }
-    Ok(format::format(language, source, tree.as_ref()))
+    let formatted = format::format(language, source, tree.as_ref());
+    // Whitespace can change a parse, as a final newline does after Ruby's `x = y&`, so the output
+    // must stay free of the syntax errors `lint` reports.
+    let (_, formatted_tree) = parse(language, &formatted)?;
+    let breaks_syntax = formatted_tree
+        .as_ref()
+        .is_some_and(|tree| lint::has_syntax_errors(&formatted, tree));
+    Ok(if breaks_syntax {
+        source.to_owned()
+    } else {
+        formatted
+    })
 }
 
 fn parse(language: &str, source: &str) -> Result<(LanguageSpec, Option<Tree>), JsError> {

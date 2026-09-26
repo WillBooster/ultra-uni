@@ -730,6 +730,11 @@ test.each([
   expect(await call('format', 'kotlin', source)).toEqual({ status: 200, body: { result: source } });
 });
 
+test('keeps code unchanged when formatting would introduce a syntax error', async () => {
+  expect(await call('lint', 'ruby', 'x = y&')).toEqual({ status: 200, body: { result: [] } });
+  expect(await call('format', 'ruby', 'x = y&')).toEqual({ status: 200, body: { result: 'x = y&' } });
+});
+
 test('refuses to format code with syntax errors', async () => {
   expect(await call('format', 'python', 'def f(:\n')).toEqual({
     status: 400,
