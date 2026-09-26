@@ -532,9 +532,10 @@ test.each([
 });
 
 test.each([
-  { construct: 'with trailing whitespace', source: 's = <<~EOS\n  abc   \n' },
-  { construct: 'without a final newline', source: 's = <<~EOS\n  abc' },
-])('keeps an unterminated Ruby heredoc $construct at the end of the file', async ({ source }) => {
+  { construct: 'unterminated heredoc with trailing whitespace', source: 's = <<~EOS\n  abc   \n' },
+  { construct: 'unterminated heredoc without a final newline', source: 's = <<~EOS\n  abc' },
+  { construct: '__END__ data section', source: 'puts DATA.read\n__END__\ndata line  \r\nmore\n\n' },
+])('keeps a Ruby $construct that reaches the end of the file', async ({ source }) => {
   expect(await call('lint', 'ruby', source)).toEqual({ status: 200, body: { result: [] } });
   expect(await call('format', 'ruby', source)).toEqual({ status: 200, body: { result: source } });
 });

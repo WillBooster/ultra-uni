@@ -5,16 +5,16 @@ use tree_sitter::{Node, Tree};
 use crate::tree::walk;
 
 /// Removes trailing whitespace (including the `\r` of CRLF) and trailing blank lines outside
-/// literals, and ends non-empty code with a single newline unless a literal reaches the end.
+/// literals, and ends non-empty code with a single newline unless it ends inside an open literal.
 pub fn format(source: &str, tree: Option<&Tree>) -> String {
-    let literals = literal_ranges(tree);
-    // A literal can reach the end of the file, as an unterminated Ruby heredoc does without a syntax
-    // error, so the trailing blank run stops at the end of the last literal.
+    let Literals { ranges, open_end } = literals(tree);
+    // The trailing blank run stops at the end of the last literal, which can reach the end of the
+    // file.
     let trimmed_end = source.trim_end_matches(['\n', ' ', '\t', '\r']).len();
-    let content_end = trimmed_end.max(literals.last().map_or(0, |literal| literal.end));
+    let content_end = trimmed_end.max(ranges.last().map_or(0, |range| range.end));
     let mut formatted = String::with_capacity(content_end + 1);
     let mut last = 0;
-    for range in trailing_whitespace(source, &literals) {
+    for range in trailing_whitespace(source, &ranges) {
         if range.start >= content_end {
             break;
         }
@@ -22,20 +22,27 @@ pub fn format(source: &str, tree: Option<&Tree>) -> String {
         last = range.end;
     }
     formatted.push_str(&source[last..content_end]);
-    // An unterminated literal, such as a Ruby heredoc without its terminator line, ends with a
-    // zero-width closing node at the end, and a newline appended there would join its value.
-    let is_unterminated = literals
-        .last()
-        .is_some_and(|literal| literal.is_empty() && literal.end == content_end);
-    if !formatted.is_empty() && !is_unterminated {
+    // A newline appended at the end of an open literal would join its value.
+    if !formatted.is_empty() && open_end != Some(content_end) {
         formatted.push('\n');
     }
     formatted
 }
 
-/// Byte ranges of the innermost literal nodes, in document order and disjoint.
-pub fn literal_ranges(tree: Option<&Tree>) -> Vec<Range<usize>> {
-    let mut literals = Vec::new();
+pub struct Literals {
+    /// Byte ranges of the innermost literal nodes, in document order and disjoint.
+    pub ranges: Vec<Range<usize>>,
+    /// The end of the last literal when it has no closing delimiter and so runs to the end of the
+    /// file: an unterminated Ruby heredoc, whose closing node is zero-width, or Ruby's `__END__`
+    /// data.
+    pub open_end: Option<usize>,
+}
+
+pub fn literals(tree: Option<&Tree>) -> Literals {
+    let mut literals = Literals {
+        ranges: Vec::new(),
+        open_end: None,
+    };
     if let Some(tree) = tree {
         collect_literals(tree.root_node(), &mut literals);
     }
@@ -66,14 +73,17 @@ pub fn trailing_whitespace(source: &str, literals: &[Range<usize>]) -> Vec<Range
 /// Collects the innermost literal nodes, so that containers such as a concatenation of strings do
 /// not hide the whitespace between their parts. Single-line nodes count too because some grammars
 /// split a multi-line literal into one node per line, as PHP does for heredocs.
-fn collect_literals(root: Node, literals: &mut Vec<Range<usize>>) {
+fn collect_literals(root: Node, literals: &mut Literals) {
     walk(root, |node, _| {
         let mut cursor = node.walk();
         let has_literal_child = node
             .named_children(&mut cursor)
             .any(|child| is_literal_kind(child.kind()));
         if is_literal_kind(node.kind()) && !has_literal_child {
-            literals.push(node.byte_range());
+            let range = node.byte_range();
+            let is_open = range.is_empty() || node.kind() == "uninterpreted";
+            literals.open_end = is_open.then_some(range.end);
+            literals.ranges.push(range);
             return false;
         }
         true
@@ -81,7 +91,7 @@ fn collect_literals(root: Node, literals: &mut Vec<Range<usize>>) {
 }
 
 fn is_literal_kind(kind: &str) -> bool {
-    ["string", "heredoc", "nowdoc", "quasiquote"]
+    ["string", "heredoc", "nowdoc", "quasiquote", "uninterpreted"]
         .iter()
         .any(|keyword| kind.contains(keyword))
 }
