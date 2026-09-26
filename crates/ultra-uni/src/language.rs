@@ -27,7 +27,8 @@ pub const LANGUAGE_IDS: &[&str] = &[
 pub struct Profile {
     pub functions: &'static [&'static str],
     /// Function kinds that only declare a signature when they lack a body (a `body` field, a
-    /// `function_body` child, or C#'s expression body), such as abstract methods and auto-properties.
+    /// `function_body` or `block` child, or C#'s expression body), such as abstract methods,
+    /// auto-properties, and Kotlin constructors that only delegate.
     pub optional_body_functions: &'static [&'static str],
     /// Conditionals, loops, and handlers: they add a path and nest the code inside them.
     pub branches: &'static [&'static str],
@@ -277,7 +278,12 @@ const KOTLIN: Profile = Profile {
         "getter",
         "setter",
     ],
-    optional_body_functions: &["function_declaration", "getter", "setter"],
+    optional_body_functions: &[
+        "function_declaration",
+        "getter",
+        "setter",
+        "secondary_constructor",
+    ],
     branches: &[
         "if_expression",
         "for_statement",

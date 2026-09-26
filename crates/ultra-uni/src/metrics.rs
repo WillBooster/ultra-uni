@@ -350,7 +350,7 @@ fn has_body(node: Node) -> bool {
             .is_some_and(|value| value.kind() == "arrow_expression_clause")
         || node
             .children(&mut cursor)
-            .any(|child| child.kind() == "function_body")
+            .any(|child| matches!(child.kind(), "function_body" | "block"))
 }
 
 /// Whether the node is a further equation of the Haskell definition before it, since Haskell

@@ -591,6 +591,11 @@ test.each([
     language: 'php',
     source: '<?php interface I { public int $x { get; } }\n',
   },
+  {
+    construct: 'Kotlin delegating secondary constructor',
+    language: 'kotlin',
+    source: 'class A(val x: Int) { constructor() : this(1) }\n',
+  },
   { construct: 'Kotlin interface function', language: 'kotlin', source: 'interface A {\n  fun g(): Int\n}\n' },
 ])('does not count a bodiless $construct as a function', async ({ language, source }) => {
   const { body } = await call('measure', language, source);
