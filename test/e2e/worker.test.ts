@@ -543,6 +543,8 @@ test.each([
 test.each([
   { construct: 'string', source: 'x = "a\\  \nb"\n' },
   { construct: 'heredoc', source: 'x = <<~EOS\n  a\\  \nEOS\n' },
+  { construct: 'regex', source: 's = /a\\ \nb/\n' },
+  { construct: 'subshell', source: 's = `a\\ \nb`\n' },
 ])('keeps an escaped space at a line end in a Ruby $construct', async ({ source }) => {
   expect(await call('lint', 'ruby', source)).toEqual({ status: 200, body: { result: [] } });
   expect(await call('format', 'ruby', source)).toEqual({ status: 200, body: { result: source } });

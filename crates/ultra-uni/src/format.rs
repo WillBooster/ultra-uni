@@ -81,6 +81,8 @@ fn collect_literals(source: &str, root: Node, literals: &mut Literals) {
     walk(root, |node, _| {
         let kind = node.kind();
         let is_value = is_literal_kind(kind) && !CONCATENATIONS.contains(&kind)
+            // An escaped space is a value byte even where no value node encloses it.
+            || kind.contains("escape_sequence")
             || is_preformatted_element(source, node);
         if !is_value {
             return true;
@@ -113,7 +115,7 @@ fn is_preformatted_element(source: &str, node: Node) -> bool {
 }
 
 fn is_literal_kind(kind: &str) -> bool {
-    ["string", "heredoc", "nowdoc", "quasiquote", "uninterpreted"]
+    ["string", "heredoc", "nowdoc", "quasiquote", "uninterpreted", "regex", "subshell"]
         .iter()
         .any(|keyword| kind.contains(keyword))
         // Markup text, attribute values, and embedded code in HTML, JSP (embedded-template), and PHP
