@@ -325,7 +325,7 @@ test.each([
 
 test.each([
   { construct: 'destructor', source: 'class A { ~A() { } }\n' },
-  { construct: 'expression-bodied property', source: 'class A { int P => 1; int Q { get; set; } = 2; }\n' },
+  { construct: 'expression-bodied property', source: 'class A { int P => 1; }\n' },
   { construct: 'expression-bodied indexer', source: 'class A { int this[int i] => i; }\n' },
 ])('counts a C# $construct as a function', async ({ source }) => {
   const { body } = await call('measure', 'csharp', source);
@@ -419,6 +419,11 @@ test.each([
     construct: 'C# auto-property and abstract method',
     language: 'csharp',
     source: 'abstract class A { public int X { get; set; } abstract int G(); }\n',
+  },
+  {
+    construct: 'C# auto-property with an initializer',
+    language: 'csharp',
+    source: 'class A { int Q { get; set; } = 2; }\n',
   },
   {
     construct: 'PHP interface property hook',
