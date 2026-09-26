@@ -37,7 +37,7 @@ Supported languages (`supportedLanguages()`): `c`, `cpp`, `csharp`, `css`, `dart
 - `lines`: a line is `blank` if it holds only whitespace, `comment` if all its tokens belong to comments, and `code` otherwise.
 - `functionCount`: functions, methods, constructors, and lambdas that have a body.
 - `cyclomaticComplexity`: McCabe complexity of the whole file: 1, plus 1 per function, plus 1 per conditional, loop, exception handler, case other than a default or `_` wildcard, and logical or coalescing operator (`&&`, `||`, `and`, `or`, `??`, `?:`, `orelse`).
-- `cognitiveComplexity`: a simplified SonarSource cognitive complexity: 1 plus the nesting level per conditional, loop, handler, and switch; 1 per `else`, chained branch (`elif`, `elsif`, `elseif`), or guard (e.g., `case ... when`); and 1 per sequence of the same logical operator.
+- `cognitiveComplexity`: a simplified SonarSource cognitive complexity: 1 plus the nesting level per conditional, loop, handler, and switch; 1 per `else`, chained branch (`elif`, `elsif`, `elseif`), or guard (e.g., `case ... when`); and 1 per sequence of the same logical operator. A function nested inside another function also raises the nesting level by 1.
 - `maxNestingDepth`: the deepest nesting of conditionals, loops, handlers, and switches.
 
 CSS, HTML, JSP, and text have no functions or control flow, so their complexity metrics are omitted (`undefined`).
