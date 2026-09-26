@@ -176,7 +176,7 @@ const CSHARP: Profile = Profile {
     switches: &["switch_statement", "switch_expression"],
     cases: &["switch_section", "switch_expression_arm"],
     wildcard_cases: &["switch_section", "switch_expression_arm"],
-    logical_operators: &["&&", "||", "??"],
+    logical_operators: &["&&", "||", "??", "??="],
     operator_node: None,
 };
 
@@ -197,7 +197,7 @@ const DART: Profile = Profile {
     switches: &["switch_statement", "switch_expression"],
     cases: &["switch_statement_case", "switch_expression_case"],
     wildcard_cases: &["switch_statement_case", "switch_expression_case"],
-    logical_operators: &["&&", "||", "??"],
+    logical_operators: &["&&", "||", "??", "??="],
     operator_node: None,
 };
 
@@ -265,7 +265,7 @@ const JAVASCRIPT: Profile = Profile {
     switches: &["switch_statement"],
     cases: &["switch_case"],
     wildcard_cases: &[],
-    logical_operators: &["&&", "||", "??"],
+    logical_operators: &["&&", "||", "??", "&&=", "||=", "??="],
     operator_node: None,
 };
 
@@ -323,7 +323,7 @@ const PHP: Profile = Profile {
     switches: &["switch_statement", "match_expression"],
     cases: &["case_statement", "match_conditional_expression"],
     wildcard_cases: &[],
-    logical_operators: &["&&", "||", "and", "or", "xor", "??"],
+    logical_operators: &["&&", "||", "and", "or", "xor", "??", "??="],
     operator_node: None,
 };
 
@@ -371,7 +371,7 @@ const RUBY: Profile = Profile {
     switches: &["case", "case_match"],
     cases: &["when", "in_clause"],
     wildcard_cases: &["in_clause"],
-    logical_operators: &["&&", "||", "and", "or"],
+    logical_operators: &["&&", "||", "and", "or", "&&=", "||="],
     operator_node: None,
 };
 

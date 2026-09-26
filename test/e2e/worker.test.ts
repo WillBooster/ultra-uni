@@ -475,6 +475,17 @@ test('formats whitespace between Dart concatenated strings with a comment betwee
   expect(body).toEqual({ result: 'var s = "a"\n    // c\n    "b";\n' });
 });
 
+test.each([
+  { language: 'javascript', source: 'function f(a, b) {\n  a ??= b;\n}\n' },
+  { language: 'ruby', source: 'def f(a, b)\n  a ||= b\nend\n' },
+  { language: 'csharp', source: 'class A { void F(int? a, int b) { a ??= b; } }\n' },
+  { language: 'php', source: '<?php\nfunction f($a, $b) { $a ??= $b; }\n' },
+  { language: 'dart', source: 'void f(int? a, int b) {\n  a ??= b;\n}\n' },
+])('scores a short-circuit assignment like its operator in $language', async ({ language, source }) => {
+  const { body } = await call('measure', language, source);
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 1 } });
+});
+
 test('scores Python comprehension clauses as branches', async () => {
   const { body } = await call('measure', 'python', 'ys = [x for x in xs if x]\n');
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 2, maxNestingDepth: 1 } });
