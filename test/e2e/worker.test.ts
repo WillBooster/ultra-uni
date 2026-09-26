@@ -528,6 +528,15 @@ test.each([
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 3 } });
 });
 
+test('counts a Python one-element sequence case as a path', async () => {
+  const { body } = await call(
+    'measure',
+    'python',
+    'def f(x):\n    match x:\n        case 1:\n            pass\n        case _,:\n            pass\n'
+  );
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 4 } });
+});
+
 test('counts a JavaScript case labeled with the identifier _ as a path', async () => {
   const { body } = await call('measure', 'javascript', 'switch (x) {\n  case _:\n    f();\n}\n');
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 2 } });

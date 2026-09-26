@@ -411,7 +411,11 @@ fn is_default_case(node: Node, source: &str, profile: &Profile) -> bool {
         .child_by_field_name("pattern")
         .or_else(|| first_code_child(node));
     let is_catch_all = profile.wildcard_cases.contains(&node.kind())
-        && pattern.is_some_and(|pattern| is_wildcard_pattern(pattern, source));
+        && pattern.is_some_and(|pattern| {
+            // A comma after the pattern makes the label a sequence, as in Python's `case _,:`.
+            is_wildcard_pattern(pattern, source)
+                && next_code_sibling(pattern).is_none_or(|next| next.kind() != ",")
+        });
     // Haskell's `guards` names its own condition `guard`; that condition is the pattern here.
     let has_guard = node
         .child_by_field_name("guard")
