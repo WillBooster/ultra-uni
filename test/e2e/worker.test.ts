@@ -365,6 +365,14 @@ test.each([
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 1, maxNestingDepth: 1 } });
 });
 
+test.each([
+  { construct: 'catch clause', source: 'void f() { try { g(); } catch (e) { if (a) h(); } }\n' },
+  { construct: 'on clause', source: 'void f() { try { g(); } on FormatException { if (a) h(); } }\n' },
+])('nests the body of a Dart $construct like other handlers', async ({ source }) => {
+  const { body } = await call('measure', 'dart', source);
+  expect(body).toMatchObject({ result: { cognitiveComplexity: 3, maxNestingDepth: 2 } });
+});
+
 test('scores Python comprehension clauses as branches', async () => {
   const { body } = await call('measure', 'python', 'ys = [x for x in xs if x]\n');
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 2, maxNestingDepth: 1 } });

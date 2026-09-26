@@ -164,11 +164,6 @@ impl ComplexityCounter<'_> {
             } else if is_when_guard(node) {
                 self.cyclomatic += 1;
                 self.cognitive += 1;
-            } else if is_dart_on_handler(node) {
-                // Scored like the `catch_clause` it replaces, which is also a sibling of its block.
-                self.cyclomatic += 1;
-                self.cognitive += 1 + u64::from(nesting.cognitive);
-                inner.control += 1;
             }
         } else if profile.functions.contains(&kind)
             && !is_function_type(node)
@@ -185,7 +180,10 @@ impl ComplexityCounter<'_> {
         {
             self.cyclomatic += 1;
             self.cognitive += 1;
-        } else if profile.branches.contains(&kind) || is_comprehension_filter(node) {
+        } else if profile.branches.contains(&kind)
+            || is_comprehension_filter(node)
+            || is_dart_handler_block(node)
+        {
             self.cyclomatic += 1;
             // `else if` is scored by its `else` and continues the chain at the same level.
             if !follows_else(node) {
@@ -277,18 +275,13 @@ fn has_condition_guard(case: Node) -> bool {
         .is_some_and(|pattern| pattern.child_by_field_name("condition").is_some())
 }
 
-/// Whether the token is the `on` of a Dart handler without a `catch` clause; the grammar keeps the
-/// handler's `on`, type, and block directly in the `try_statement`.
-fn is_dart_on_handler(token: Node) -> bool {
-    !token.is_named()
-        && token.kind() == "on"
-        && token
-            .parent()
-            .is_some_and(|parent| parent.kind() == "try_statement")
-        && token
-            .next_named_sibling()
-            .and_then(|handled_type| handled_type.next_named_sibling())
-            .is_none_or(|next| next.kind() != "catch_clause")
+/// Whether the node is the body of a Dart exception handler; the grammar keeps a handler's `catch`
+/// clause or `on` type as siblings of its block in the `try_statement`.
+fn is_dart_handler_block(node: Node) -> bool {
+    node.kind() == "block"
+        && node.parent().is_some_and(|parent| {
+            parent.kind() == "try_statement" && parent.child_by_field_name("body") != Some(node)
+        })
 }
 
 /// Whether the token is the `when` of a Dart pattern guard, which the grammar leaves unwrapped in

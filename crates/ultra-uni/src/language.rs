@@ -190,7 +190,6 @@ const DART: Profile = Profile {
         "while_statement",
         "do_statement",
         "conditional_expression",
-        "catch_clause",
     ],
     chained_branches: &[],
     alternative_branches: &[],
