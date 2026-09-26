@@ -277,6 +277,12 @@ test.each([
     cyclomaticComplexity: 4,
   },
   {
+    construct: 'a guarded Haskell wildcard alternative',
+    language: 'haskell',
+    source: 'f x = case x of\n  _ | x > 0 -> 1\n  _ -> 0\n',
+    cyclomaticComplexity: 4,
+  },
+  {
     construct: 'a C# exception filter',
     language: 'csharp',
     source: 'class A { int F(int x) { try { return 1; } catch (System.Exception e) when (x > 0) { return 2; } } }\n',

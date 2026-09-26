@@ -318,6 +318,10 @@ fn is_default_case(node: Node, source: &str, profile: &Profile) -> bool {
         || node
             .named_children(&mut cursor)
             .any(|child| profile.chained_branches.contains(&child.kind()))
-        || has_bare_guard(node);
+        || has_bare_guard(node)
+        // A Haskell alternative keeps its guards in its `match`.
+        || node
+            .child_by_field_name("match")
+            .is_some_and(|m| m.child_by_field_name("guards").is_some());
     (has_default_keyword || is_catch_all) && !has_guard
 }
