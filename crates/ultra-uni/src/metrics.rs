@@ -358,27 +358,29 @@ fn follows_else(node: Node) -> bool {
     else {
         return false;
     };
-    let mut owner = token.parent();
-    if let Some(clause) = owner.filter(|parent| parent.kind() == "else_clause") {
-        owner = clause.parent();
-    }
-    owner.is_some_and(|owner| owner.kind() == node.kind())
+    else_owner(token).is_some_and(|owner| owner.kind() == node.kind())
 }
 
 /// Excludes `else` tokens that do not open a branch of their own: the fallback arm of a switch
 /// and the second operand of a conditional expression such as Python's `a if c else b`.
 fn is_else_branch(token: Node, profile: &Profile) -> bool {
-    let mut owner = token.parent();
-    // Ruby wraps the `else` keyword and its body in an `else` node.
-    if let Some(parent) = owner.filter(|parent| parent.kind() == "else") {
-        owner = parent.parent();
-    }
-    owner.is_none_or(|owner| {
+    else_owner(token).is_none_or(|owner| {
         let kind = owner.kind();
         !profile.cases.contains(&kind)
             && !profile.switches.contains(&kind)
             && kind != "conditional_expression"
     })
+}
+
+/// The construct an `else` token belongs to, looking through the node that wraps the keyword and
+/// its body: `else_clause` in C-like grammars and `else` in Ruby.
+fn else_owner(token: Node) -> Option<Node> {
+    let parent = token.parent()?;
+    if matches!(parent.kind(), "else_clause" | "else") {
+        parent.parent()
+    } else {
+        Some(parent)
+    }
 }
 
 /// A default case is marked by a `default` or `else` keyword, or has the wildcard `_` (or Haskell's

@@ -424,6 +424,14 @@ test.each([
   expect(body).toMatchObject({ result: { cognitiveComplexity: 7, maxNestingDepth: 3 } });
 });
 
+test.each([
+  { construct: 'elsif', source: 'if a then 1 elsif b then 2 else 3 end\n' },
+  { construct: 'else if', source: 'if a then 1 else if b then 2 else 3 end end\n' },
+])('scores a Ruby $construct chain without nesting', async ({ source }) => {
+  const { body } = await call('measure', 'ruby', source);
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 3, maxNestingDepth: 1 } });
+});
+
 test('scores Python comprehension clauses as branches', async () => {
   const { body } = await call('measure', 'python', 'ys = [x for x in xs if x]\n');
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 2, maxNestingDepth: 1 } });
