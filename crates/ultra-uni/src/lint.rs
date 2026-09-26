@@ -55,7 +55,7 @@ pub fn has_syntax_errors(source: &str, tree: &Tree) -> bool {
 
 fn collect_syntax_errors(lines: &LineIndex, root: Node, diagnostics: &mut Vec<Diagnostic>) {
     walk(root, |node, _| {
-        if !node.has_error() {
+        if !node.has_error() || is_recovered_kotlin_member(node) {
             return false;
         }
         let message = if node.is_error() {
@@ -73,6 +73,19 @@ fn collect_syntax_errors(lines: &LineIndex, root: Node, diagnostics: &mut Vec<Di
         });
         false
     });
+}
+
+/// tree-sitter-kotlin-ng parses a valid one-line class body such as `class A { val x = 1 }` as an
+/// `enum_class_body` whose member sits in an ERROR node, although the member itself parses cleanly.
+fn is_recovered_kotlin_member(node: Node) -> bool {
+    let mut cursor = node.walk();
+    node.is_error()
+        && node
+            .parent()
+            .is_some_and(|parent| parent.kind() == "enum_class_body")
+        && node
+            .children(&mut cursor)
+            .all(|child| child.is_named() && !child.has_error())
 }
 
 struct LineIndex<'a> {

@@ -531,8 +531,10 @@ test.each([
   expect(body).toEqual({ result: source });
 });
 
-test('keeps whitespace inside a literal that reaches the end of the file', async () => {
-  const source = 's = <<~EOS\n  abc   \n';
+test.each([
+  { construct: 'with trailing whitespace', source: 's = <<~EOS\n  abc   \n' },
+  { construct: 'without a final newline', source: 's = <<~EOS\n  abc' },
+])('keeps an unterminated Ruby heredoc $construct at the end of the file', async ({ source }) => {
   expect(await call('lint', 'ruby', source)).toEqual({ status: 200, body: { result: [] } });
   expect(await call('format', 'ruby', source)).toEqual({ status: 200, body: { result: source } });
 });
@@ -549,8 +551,11 @@ test('formats trailing whitespace and blank lines, keeping them inside literals'
   expect(body).toEqual({ result: 's = """a  \nb"""\nt = 1\n' });
 });
 
-test('formats a Kotlin one-line class body that lint reports as clean', async () => {
-  const source = 'class A { val a: Int = 1 }\n';
+test.each([
+  { construct: 'property with a type', source: 'class A { val a: Int = 1 }\n' },
+  { construct: 'property without a type', source: 'class A { val x = 1 }\n' },
+  { construct: 'initializer', source: 'class A { init { } }\n' },
+])('formats a Kotlin one-line class body with a $construct that lint reports as clean', async ({ source }) => {
   expect(await call('lint', 'kotlin', source)).toEqual({ status: 200, body: { result: [] } });
   expect(await call('format', 'kotlin', source)).toEqual({ status: 200, body: { result: source } });
 });

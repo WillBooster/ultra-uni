@@ -22,8 +22,12 @@ pub fn format(source: &str, tree: Option<&Tree>) -> String {
         last = range.end;
     }
     formatted.push_str(&source[last..content_end]);
-    // A newline appended after a literal that reaches the end would become part of its value.
-    if !formatted.is_empty() && content_end == trimmed_end {
+    // An unterminated literal, such as a Ruby heredoc without its terminator line, ends with a
+    // zero-width closing node at the end, and a newline appended there would join its value.
+    let is_unterminated = literals
+        .last()
+        .is_some_and(|literal| literal.is_empty() && literal.end == content_end);
+    if !formatted.is_empty() && !is_unterminated {
         formatted.push('\n');
     }
     formatted
