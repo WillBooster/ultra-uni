@@ -349,9 +349,20 @@ fn is_function_type(node: Node) -> bool {
     node.child_by_field_name("result").is_some()
 }
 
+/// Whether the branch is the `if` of an `else if`: it follows an `else` token and has the kind of
+/// the conditional owning that `else`, so a loop used as an unbraced `else` body is not one.
 fn follows_else(node: Node) -> bool {
-    node.prev_sibling()
-        .is_some_and(|sibling| !sibling.is_named() && sibling.kind() == "else")
+    let Some(token) = node
+        .prev_sibling()
+        .filter(|sibling| !sibling.is_named() && sibling.kind() == "else")
+    else {
+        return false;
+    };
+    let mut owner = token.parent();
+    if let Some(clause) = owner.filter(|parent| parent.kind() == "else_clause") {
+        owner = clause.parent();
+    }
+    owner.is_some_and(|owner| owner.kind() == node.kind())
 }
 
 /// Excludes `else` tokens that do not open a branch of their own: the fallback arm of a switch
