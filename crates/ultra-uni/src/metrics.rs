@@ -2,7 +2,7 @@ use serde::Serialize;
 use tree_sitter::{Node, Tree};
 
 use crate::language::Profile;
-use crate::tree::walk;
+use crate::tree::{next_code_sibling, prev_code_sibling, walk};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -250,15 +250,16 @@ impl<'a> ComplexityCounter<'a> {
                 && parent.child_by_field_name("right").is_some()
         });
         let is_operand = |sibling: Option<Node>| sibling.is_some_and(|sibling| sibling.is_named());
-        (is_binary_operator || is_operand(node.prev_sibling()) && is_operand(node.next_sibling()))
-            .then_some(*operator)
+        (is_binary_operator
+            || is_operand(prev_code_sibling(node)) && is_operand(next_code_sibling(node)))
+        .then_some(*operator)
     }
 
     /// Whether the operator continues a sequence of the same operator, as in `a && b && c`: an
     /// adjacent operand contains it (nested chains) or an earlier sibling is it (flat chains such as
     /// Dart's `??`).
     fn continues_logical_sequence(&self, node: Node, operator: &str) -> bool {
-        let in_operand = [node.prev_sibling(), node.next_sibling()]
+        let in_operand = [prev_code_sibling(node), next_code_sibling(node)]
             .into_iter()
             .flatten()
             .any(|operand| {
@@ -336,7 +337,7 @@ fn continues_definition(node: Node, source: &str) -> bool {
             .map(|name| &source[name.byte_range()])
     };
     std::iter::successors(node.prev_named_sibling(), Node::prev_named_sibling)
-        .find(|sibling| !matches!(sibling.kind(), "comment" | "haddock"))
+        .find(|sibling| !sibling.is_extra())
         .is_some_and(|previous| {
             previous.kind() == "function"
                 && name(previous).is_some()
@@ -352,9 +353,8 @@ fn is_function_type(node: Node) -> bool {
 /// Whether the branch is the `if` of an `else if`: it follows an `else` token and has the kind of
 /// the conditional owning that `else`, so a loop used as an unbraced `else` body is not one.
 fn follows_else(node: Node, profile: &Profile) -> bool {
-    let Some(token) = node
-        .prev_sibling()
-        .filter(|sibling| !sibling.is_named() && sibling.kind() == "else")
+    let Some(token) =
+        prev_code_sibling(node).filter(|sibling| !sibling.is_named() && sibling.kind() == "else")
     else {
         return false;
     };

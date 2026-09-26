@@ -103,13 +103,17 @@ pub fn trailing_whitespace(source: &str, values: &[Range<usize>]) -> Vec<Range<u
 /// children are all quoted literals, while other grammars' `string_literal` holds fragments.
 fn is_concatenation(node: Node) -> bool {
     let mut cursor = node.walk();
+    let parts: Vec<Node> = node
+        .named_children(&mut cursor)
+        .filter(|child| !child.is_extra())
+        .collect();
     matches!(
         node.kind(),
         "concatenated_string" | "chained_string" | "string_array"
-    ) || node.named_child_count() > 1
-        && node
-            .named_children(&mut cursor)
-            .all(|child| child.kind().contains("string_literal"))
+    ) || parts.len() > 1
+        && parts
+            .iter()
+            .all(|part| part.kind().contains("string_literal"))
 }
 
 /// Collects the outermost value nodes, because a grammar can leave value bytes outside every

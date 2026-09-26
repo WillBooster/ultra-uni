@@ -403,7 +403,7 @@ test.each([
 });
 
 test.each([
-  { language: 'dart', source: 'var x = a ?? b ?? c;\n' },
+  { language: 'dart', source: 'var x = a ??\n    // fall back\n    b ??\n    c;\n' },
   { language: 'javascript', source: 'const x = a ?? b ?? c;\n' },
 ])('scores a chain of the same coalescing operator as one sequence in $language', async ({ language, source }) => {
   const { body } = await call('measure', language, source);
@@ -427,6 +427,7 @@ test.each([
 test.each([
   { construct: 'elsif', source: 'if a then 1 elsif b then 2 else 3 end\n' },
   { construct: 'else if', source: 'if a then 1 else if b then 2 else 3 end end\n' },
+  { construct: 'else if with a comment between', source: 'if a then 1 else # c\n  if b then 2 else 3 end\nend\n' },
 ])('scores a Ruby $construct chain without nesting', async ({ source }) => {
   const { body } = await call('measure', 'ruby', source);
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 3, maxNestingDepth: 1 } });
@@ -647,7 +648,7 @@ test('ends TypeScript code with a string type keyword with a newline', async () 
 
 test.each([
   { language: 'python', source: 'x = ("a"   \n     "b")\n', formatted: 'x = ("a"\n     "b")\n' },
-  { language: 'dart', source: 'var s = "a"   \n    "b";\n', formatted: 'var s = "a"\n    "b";\n' },
+  { language: 'dart', source: 'var s = "a"   \n    // c\n    "b";\n', formatted: 'var s = "a"\n    // c\n    "b";\n' },
 ])(
   'formats trailing whitespace between the parts of a $language string concatenation',
   async ({ formatted, language, source }) => {
