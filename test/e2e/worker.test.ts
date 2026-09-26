@@ -538,6 +538,11 @@ test.each([
 test.each([
   { construct: 'switch case', source: 'int f(int x) { switch (x) { case 1 || 2: return 1; } return 0; }\n' },
   { construct: 'if-case', source: 'int f(int x) { if (x case 1 || 2) { return 1; } return 0; }\n' },
+  {
+    construct: 'record pattern',
+    source: 'int f((int, int) x) { switch (x) { case (1 || 2, 3): return 1; } return 0; }\n',
+  },
+  { construct: 'list pattern', source: 'int f(List<int> x) { switch (x) { case [1 || 2]: return 1; } return 0; }\n' },
 ])('does not score a Dart or-pattern in a $construct as a logical operator', async ({ source }) => {
   const { body } = await call('measure', 'dart', source);
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 3, cognitiveComplexity: 1 } });

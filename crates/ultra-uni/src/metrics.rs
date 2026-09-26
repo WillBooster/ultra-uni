@@ -250,12 +250,14 @@ impl<'a> ComplexityCounter<'a> {
                 && parent.child_by_field_name("right").is_some()
         });
         let is_operand = |sibling: Option<Node>| sibling.is_some_and(|sibling| sibling.is_named());
-        // A control structure never holds a binary operator directly; such a token joins patterns,
-        // as Dart's `case 1 || 2` does, and the case scores its own path.
+        // A pattern node or a control structure never holds a binary operator directly; such a
+        // token joins patterns, as Dart's `case 1 || 2` and `case [1 || 2]` do, and the case scores
+        // its own path.
         let in_pattern = node.parent().is_some_and(|parent| {
             let kind = parent.kind();
             let profile = self.profile;
-            profile.cases.contains(&kind)
+            kind.ends_with("pattern")
+                || profile.cases.contains(&kind)
                 || profile.branches.contains(&kind)
                 || profile.switches.contains(&kind)
         });
