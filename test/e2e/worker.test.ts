@@ -503,9 +503,15 @@ test('counts columns in UTF-16 code units', async () => {
   });
 });
 
-test('formats trailing whitespace in HTML script bodies', async () => {
-  const { body } = await call('format', 'html', '<script>\nvar x = 1;   \n</script>\n');
-  expect(body).toEqual({ result: '<script>\nvar x = 1;\n</script>\n' });
+test.each([
+  { construct: 'HTML script body', language: 'html', source: '<script>\nvar s = "a  \nb";\n</script>\n' },
+  { construct: 'HTML pre text', language: 'html', source: '<pre>\nhello   \n</pre>\n' },
+  { construct: 'HTML attribute value', language: 'html', source: '<a title="a  \nb">x</a>\n' },
+  { construct: 'JSP scriptlet', language: 'jsp', source: '<%\nString s = "a  \nb";\n%>\n' },
+  { construct: 'PHP template text', language: 'php', source: '<p>\nhello   \n</p>\n' },
+])('keeps whitespace inside a $construct', async ({ language, source }) => {
+  expect(await call('lint', language, source)).toEqual({ status: 200, body: { result: [] } });
+  expect(await call('format', language, source)).toEqual({ status: 200, body: { result: source } });
 });
 
 test('formats trailing whitespace between the parts of a string concatenation', async () => {

@@ -7,7 +7,7 @@ use crate::tree::walk;
 /// Removes trailing whitespace (including the `\r` of CRLF) and trailing blank lines outside
 /// literals, and ends non-empty code with a single newline unless it ends inside an open literal.
 pub fn format(source: &str, tree: Option<&Tree>) -> String {
-    let Literals { ranges, open_end } = literals(tree);
+    let Literals { ranges, open_end } = literals(source, tree);
     // The trailing blank run stops at the end of the last literal, which can reach the end of the
     // file.
     let trimmed_end = source.trim_end_matches(['\n', ' ', '\t', '\r']).len();
@@ -23,7 +23,7 @@ pub fn format(source: &str, tree: Option<&Tree>) -> String {
     }
     formatted.push_str(&source[last..content_end]);
     // A newline appended at the end of an open literal would join its value.
-    if !formatted.is_empty() && open_end != Some(content_end) {
+    if !formatted.is_empty() && open_end != Some(content_end) && !formatted.ends_with('\n') {
         formatted.push('\n');
     }
     formatted
@@ -40,13 +40,13 @@ pub struct Literals {
     pub open_end: Option<usize>,
 }
 
-pub fn literals(tree: Option<&Tree>) -> Literals {
+pub fn literals(source: &str, tree: Option<&Tree>) -> Literals {
     let mut literals = Literals {
         ranges: Vec::new(),
         open_end: None,
     };
     if let Some(tree) = tree {
-        collect_literals(tree.root_node(), &mut literals);
+        collect_literals(source, tree.root_node(), &mut literals);
     }
     literals
 }
@@ -75,10 +75,10 @@ pub fn trailing_whitespace(source: &str, literals: &[Range<usize>]) -> Vec<Range
 /// Collects the innermost literal nodes, so that containers such as a concatenation of strings do
 /// not hide the whitespace between their parts. Single-line nodes count too because some grammars
 /// split a multi-line literal into one node per line, as PHP does for heredocs.
-fn collect_literals(root: Node, literals: &mut Literals) {
+fn collect_literals(source: &str, root: Node, literals: &mut Literals) {
     let mut ranges = Vec::new();
     walk(root, |node, _| {
-        if node.kind().contains("escape_sequence") {
+        if node.kind().contains("escape_sequence") || is_preformatted_element(source, node) {
             ranges.push(node.byte_range());
             return false;
         }
@@ -104,8 +104,28 @@ fn collect_literals(root: Node, literals: &mut Literals) {
     }
 }
 
+/// An HTML `<pre>` or `<textarea>` element, whose text keeps its whitespace; the grammar's `text`
+/// nodes exclude the whitespace at their edges.
+fn is_preformatted_element(source: &str, node: Node) -> bool {
+    node.kind() == "element"
+        && node
+            .child(0)
+            .and_then(|start_tag| start_tag.named_child(0))
+            .filter(|name| name.kind() == "tag_name")
+            .is_some_and(|name| {
+                let name = &source[name.byte_range()];
+                name.eq_ignore_ascii_case("pre") || name.eq_ignore_ascii_case("textarea")
+            })
+}
+
 fn is_literal_kind(kind: &str) -> bool {
     ["string", "heredoc", "nowdoc", "quasiquote", "uninterpreted"]
         .iter()
         .any(|keyword| kind.contains(keyword))
+        // Markup text, attribute values, and embedded code in HTML, JSP (embedded-template), and PHP
+        // templates, whose inner literals no grammar models.
+        || matches!(
+            kind,
+            "text" | "raw_text" | "attribute_value" | "quoted_attribute_value" | "code" | "content"
+        )
 }
