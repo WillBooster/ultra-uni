@@ -513,6 +513,11 @@ test('counts columns in UTF-16 code units', async () => {
   });
 });
 
+test('trims line-end whitespace inside multi-line HTML text', async () => {
+  const { body } = await call('format', 'html', '<p>\nHello   \nworld\n</p>\n');
+  expect(body).toEqual({ result: '<p>\nHello\nworld\n</p>\n' });
+});
+
 test('trims whitespace after an unclosed HTML pre inside a closed element', async () => {
   const { body } = await call('format', 'html', '<div><pre>x  \n</div>  \n\n');
   expect(body).toEqual({ result: '<div><pre>x  \n</div>\n' });

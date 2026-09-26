@@ -82,7 +82,10 @@ fn collect_value_ranges(source: &str, root: Node, ranges: &mut Vec<Range<usize>>
     walk(root, |node, _| {
         let kind = node.kind();
         // Anonymous tokens are keywords and punctuation, such as TypeScript's `string` type.
-        let is_value = node.is_named() && is_literal_kind(kind) && !is_concatenation(node)
+        let is_value = node.is_named()
+            && is_literal_kind(kind)
+            && !is_concatenation(node)
+            && !is_html_text(node)
             // An escaped space is a value byte even where no value node encloses it.
             || kind.contains("escape_sequence")
             || is_preformatted_element(source, node);
@@ -106,6 +109,15 @@ fn collect_value_ranges(source: &str, root: Node, ranges: &mut Vec<Range<usize>>
         ranges.push(range);
         false
     });
+}
+
+/// HTML text outside `<pre>` and `<textarea>`, whose line-end whitespace is insignificant, unlike
+/// the PHP template text that shares its kind.
+fn is_html_text(node: Node) -> bool {
+    node.kind() == "text"
+        && node
+            .parent()
+            .is_some_and(|parent| matches!(parent.kind(), "element" | "document"))
 }
 
 /// An HTML `<pre>` or `<textarea>` element, whose text keeps its whitespace; the grammar's `text`
