@@ -26,8 +26,8 @@ pub const LANGUAGE_IDS: &[&str] = &[
 /// Node kinds that drive complexity metrics; each list names kinds of the language's grammar.
 pub struct Profile {
     pub functions: &'static [&'static str],
-    /// Function kinds that only declare a signature when they lack a body (a `body` field or a
-    /// `function_body` child), such as abstract methods and auto-property accessors.
+    /// Function kinds that only declare a signature when they lack a body (a `body` field, a
+    /// `function_body` child, or C#'s expression body), such as abstract methods and auto-properties.
     pub optional_body_functions: &'static [&'static str],
     /// Conditionals, loops, and handlers: they add a path and nest the code inside them.
     pub branches: &'static [&'static str],
@@ -140,6 +140,8 @@ const CSHARP: Profile = Profile {
         "conversion_operator_declaration",
         "accessor_declaration",
         "destructor_declaration",
+        "property_declaration",
+        "indexer_declaration",
     ],
     optional_body_functions: &[
         "method_declaration",
@@ -148,6 +150,8 @@ const CSHARP: Profile = Profile {
         "operator_declaration",
         "conversion_operator_declaration",
         "accessor_declaration",
+        "property_declaration",
+        "indexer_declaration",
     ],
     branches: &[
         "if_statement",

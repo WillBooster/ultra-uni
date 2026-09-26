@@ -238,6 +238,11 @@ fn is_guard(node: Node) -> bool {
 fn has_body(node: Node) -> bool {
     let mut cursor = node.walk();
     node.child_by_field_name("body").is_some()
+        // C# properties and indexers keep an expression body in `value`, which also holds an
+        // auto-property's initializer.
+        || node
+            .child_by_field_name("value")
+            .is_some_and(|value| value.kind() == "arrow_expression_clause")
         || node
             .children(&mut cursor)
             .any(|child| child.kind() == "function_body")

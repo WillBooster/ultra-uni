@@ -299,6 +299,15 @@ test.each([
   expect(body).toMatchObject({ result: { cyclomaticComplexity } });
 });
 
+test.each([
+  { construct: 'destructor', source: 'class A { ~A() { } }\n' },
+  { construct: 'expression-bodied property', source: 'class A { int P => 1; int Q { get; set; } = 2; }\n' },
+  { construct: 'expression-bodied indexer', source: 'class A { int this[int i] => i; }\n' },
+])('counts a C# $construct as a function', async ({ source }) => {
+  const { body } = await call('measure', 'csharp', source);
+  expect(body).toMatchObject({ result: { functionCount: 1, cyclomaticComplexity: 2 } });
+});
+
 test('does not score a Haskell operator section as a logical operator', async () => {
   const { body } = await call('measure', 'haskell', 'f = foldr (&&) True\n');
   expect(body).toMatchObject({ result: { cyclomaticComplexity: 1, cognitiveComplexity: 0 } });
@@ -352,12 +361,6 @@ test.each([
     source: 'abstract class A { public int X { get; set; } abstract int G(); }\n',
     functionCount: 0,
     cyclomaticComplexity: 1,
-  },
-  {
-    language: 'csharp',
-    source: 'class A { ~A() { } }\n',
-    functionCount: 1,
-    cyclomaticComplexity: 2,
   },
   {
     language: 'kotlin',
