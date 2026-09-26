@@ -449,6 +449,14 @@ test.each([
 });
 
 test.each([
+  { language: 'haskell', source: 'f x = a && (b && c)\n' },
+  { language: 'javascript', source: 'function f() {\n  return a && (b && c);\n}\n' },
+])('starts a new logical-operator sequence inside grouping parentheses in $language', async ({ language, source }) => {
+  const { body } = await call('measure', language, source);
+  expect(body).toMatchObject({ result: { cyclomaticComplexity: 4, cognitiveComplexity: 2 } });
+});
+
+test.each([
   { construct: 'elsif', source: 'if a then 1 elsif b then 2 else 3 end\n' },
   { construct: 'else if', source: 'if a then 1 else if b then 2 else 3 end end\n' },
   { construct: 'else if with a comment between', source: 'if a then 1 else # c\n  if b then 2 else 3 end\nend\n' },
