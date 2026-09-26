@@ -458,6 +458,18 @@ test('formats trailing whitespace between the parts of a string concatenation', 
   expect(body).toEqual({ result: 'x = ("a"\n     "b")\n' });
 });
 
+test.each([
+  { language: 'haskell', source: 's = [r|\nhello   \nworld|]\n' },
+  { language: 'kotlin', source: 'val s = """a  \nb"""\n' },
+  { language: 'php', source: '<?php\n$s = <<<EOT\n  a  \nEOT;\n' },
+  { language: 'ruby', source: 'x = <<~EOS\n  a  \nEOS\n' },
+  { language: 'csharp', source: 'var s = """\n  a  \n  """;\n' },
+  { language: 'rust', source: 'fn f() {\n    let s = r"a  \nb";\n}\n' },
+])('keeps trailing whitespace inside a $language multi-line literal', async ({ language, source }) => {
+  const { body } = await call('format', language, source);
+  expect(body).toEqual({ result: source });
+});
+
 test('keeps trailing whitespace that ends a multi-line literal', async () => {
   const source = 'const a =\n    \\\\hello  \n    \\\\world  \n;\n';
   const { body } = await call('format', 'zig', source);

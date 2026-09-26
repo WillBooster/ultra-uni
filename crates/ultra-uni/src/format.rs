@@ -69,7 +69,7 @@ fn collect_literals(node: Node, literals: &mut Vec<Range<usize>>) {
 }
 
 fn is_literal_kind(kind: &str) -> bool {
-    ["string", "heredoc", "nowdoc"]
+    ["string", "heredoc", "nowdoc", "quasiquote"]
         .iter()
         .any(|keyword| kind.contains(keyword))
 }
