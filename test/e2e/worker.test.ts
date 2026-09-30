@@ -810,6 +810,8 @@ test.each([
   { construct: 'property with a type', source: 'class A { val a: Int = 1 }\n' },
   { construct: 'property without a type', source: 'class A { val x = 1 }\n' },
   { construct: 'initializer', source: 'class A { init { } }\n' },
+  { construct: 'companion object with a member', source: 'class A { companion object { fun f() = 1 } }\n' },
+  { construct: 'nested object with a member', source: 'class A { object B { val x = 1 } }\n' },
 ])('formats a Kotlin one-line class body with a $construct that lint reports as clean', async ({ source }) => {
   expect(await call('lint', 'kotlin', source)).toEqual({ status: 200, body: { result: [] } });
   expect(await call('format', 'kotlin', source)).toEqual({ status: 200, body: { result: source } });

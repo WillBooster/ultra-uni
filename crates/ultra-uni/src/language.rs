@@ -73,7 +73,7 @@ pub fn resolve(id: &str) -> Option<LanguageSpec> {
         // JSP scriptlets share ERB's `<% %>` delimiters, so the embedded-template grammar splits
         // them from the surrounding markup.
         "jsp" => (Some(tree_sitter_embedded_template::LANGUAGE.into()), None),
-        "kotlin" => (Some(tree_sitter_kotlin_ng::LANGUAGE.into()), Some(&KOTLIN)),
+        "kotlin" => (Some(tree_sitter_kotlin::LANGUAGE.into()), Some(&KOTLIN)),
         "php" => (Some(tree_sitter_php::LANGUAGE_PHP.into()), Some(&PHP)),
         "python" => (Some(tree_sitter_python::LANGUAGE.into()), Some(&PYTHON)),
         "ruby" => (Some(tree_sitter_ruby::LANGUAGE.into()), Some(&RUBY)),
