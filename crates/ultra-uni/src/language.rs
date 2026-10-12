@@ -138,6 +138,7 @@ const CPP: Profile = Profile {
 const CSHARP: Profile = Profile {
     functions: &[
         "method_declaration",
+        "conditional_method_declaration",
         "constructor_declaration",
         "local_function_statement",
         "lambda_expression",
@@ -151,6 +152,7 @@ const CSHARP: Profile = Profile {
     ],
     optional_body_functions: &[
         "method_declaration",
+        "conditional_method_declaration",
         "constructor_declaration",
         "local_function_statement",
         "operator_declaration",

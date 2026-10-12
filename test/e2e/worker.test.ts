@@ -344,6 +344,20 @@ test.each([
   expect(body).toMatchObject({ result: { functionCount: 2, cyclomaticComplexity: 3 } });
 });
 
+test('counts conditional C# method signatures sharing a body as one function', async () => {
+  const source = `class A {
+#if FEATURE
+  int F(int x)
+#else
+  int F(double x)
+#endif
+  { if (x > 0) return 1; return 0; }
+}
+`;
+  const { body } = await call('measure', 'csharp', source);
+  expect(body).toMatchObject({ result: { functionCount: 1, cyclomaticComplexity: 3, cognitiveComplexity: 1 } });
+});
+
 test('counts a Kotlin secondary constructor with a block body as a function', async () => {
   const { body } = await call('measure', 'kotlin', 'class A {\n  constructor(x: Int) : super(x) { }\n}\n');
   expect(body).toMatchObject({ result: { functionCount: 1, cyclomaticComplexity: 2 } });
@@ -600,6 +614,12 @@ test('counts a Ruby lambda once through its block', async () => {
 });
 
 test.each([
+  {
+    construct: 'C# conditional method signature',
+    language: 'csharp',
+    source:
+      'abstract class A {\n#if FEATURE\n  abstract int F(int x)\n#else\n  abstract int F(double x)\n#endif\n;\n}\n',
+  },
   {
     construct: 'C# auto-property and abstract method',
     language: 'csharp',
