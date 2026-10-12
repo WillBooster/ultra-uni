@@ -293,6 +293,15 @@ test.each([
 });
 
 test.each([
+  { guard: '', cyclomaticComplexity: 3, cognitiveComplexity: 1 },
+  { guard: ' if x > 0', cyclomaticComplexity: 4, cognitiveComplexity: 2 },
+])('scores a Kotlin when entry with guard "$guard"', async ({ guard, cyclomaticComplexity, cognitiveComplexity }) => {
+  const source = `fun f(x: Any) = when (x) { is Int${guard} -> 1 else -> 0 }\n`;
+  const { body } = await call('measure', 'kotlin', source);
+  expect(body).toMatchObject({ result: { cyclomaticComplexity, cognitiveComplexity, maxNestingDepth: 1 } });
+});
+
+test.each([
   { construct: 'a Rust let-else', language: 'rust', source: 'fn f() { let Some(x) = opt else { return }; }\n' },
   { construct: "Kotlin's elvis operator", language: 'kotlin', source: 'fun f(a: Int?, b: Int): Int = a ?: b\n' },
   {
@@ -342,6 +351,20 @@ test.each([
 ])('counts $construct as separate functions', async ({ language, source }) => {
   const { body } = await call('measure', language, source);
   expect(body).toMatchObject({ result: { functionCount: 2, cyclomaticComplexity: 3 } });
+});
+
+test('counts conditional C# method signatures sharing a body as one function', async () => {
+  const source = `class A {
+#if FEATURE
+  int F(int x)
+#else
+  int F(double x)
+#endif
+  { if (x > 0) return 1; return 0; }
+}
+`;
+  const { body } = await call('measure', 'csharp', source);
+  expect(body).toMatchObject({ result: { functionCount: 1, cyclomaticComplexity: 3, cognitiveComplexity: 1 } });
 });
 
 test('counts a Kotlin secondary constructor with a block body as a function', async () => {
@@ -600,6 +623,12 @@ test('counts a Ruby lambda once through its block', async () => {
 });
 
 test.each([
+  {
+    construct: 'C# conditional method signature',
+    language: 'csharp',
+    source:
+      'abstract class A {\n#if FEATURE\n  abstract int F(int x)\n#else\n  abstract int F(double x)\n#endif\n;\n}\n',
+  },
   {
     construct: 'C# auto-property and abstract method',
     language: 'csharp',

@@ -11,24 +11,22 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = "=1.0.151"
-tree-sitter = { package = "willbooster-tree-sitter", version = "=1.0.5" }
-tree-sitter-c = { package = "willbooster-tree-sitter-c", version = "=1.1.0" }
-tree-sitter-c-sharp = { package = "willbooster-tree-sitter-c-sharp", version = "=1.0.3" }
-tree-sitter-cpp = { package = "willbooster-tree-sitter-cpp", version = "=1.1.1" }
-# Later releases of tree-sitter-css compile tree-sitter-language's legacy wasm libc, which fails
-# to build with this tree-sitter runtime.
-tree-sitter-css = "=0.23.2"
-tree-sitter-dart = "=0.2.0"
-tree-sitter-embedded-template = "=0.25.0"
-tree-sitter-haskell = "=0.23.1"
-tree-sitter-html = "=0.23.2"
-tree-sitter-java = "=0.23.5"
-tree-sitter-javascript = { package = "willbooster-tree-sitter-javascript", version = "=1.0.3" }
-tree-sitter-kotlin = { package = "willbooster-tree-sitter-kotlin", version = "=1.4.0" }
-tree-sitter-php = "=0.24.2"
-tree-sitter-python = "=0.25.0"
-tree-sitter-ruby = "=0.23.1"
-tree-sitter-rust = { package = "willbooster-tree-sitter-rust", version = "=1.1.1" }
-tree-sitter-typescript = { package = "willbooster-tree-sitter-typescript", version = "=1.1.1" }
-tree-sitter-zig = "=1.1.2"
+tree-sitter = { package = "willbooster-tree-sitter", version = "=2.0.1" }
+tree-sitter-c = { package = "willbooster-tree-sitter-c", version = "=5.0.0" }
+tree-sitter-c-sharp = { package = "willbooster-tree-sitter-c-sharp", version = "=4.0.0" }
+tree-sitter-cpp = { package = "willbooster-tree-sitter-cpp", version = "=3.0.0" }
+tree-sitter-css = { package = "willbooster-tree-sitter-css", version = "=1.0.0" }
+tree-sitter-dart = { package = "willbooster-tree-sitter-dart", version = "=1.0.0" }
+tree-sitter-embedded-template = { package = "willbooster-tree-sitter-embedded-template", version = "=1.0.0" }
+tree-sitter-haskell = { package = "willbooster-tree-sitter-haskell", version = "=1.0.0" }
+tree-sitter-html = { package = "willbooster-tree-sitter-html", version = "=1.0.0" }
+tree-sitter-java = { package = "willbooster-tree-sitter-java", version = "=2.0.0" }
+tree-sitter-javascript = { package = "willbooster-tree-sitter-javascript", version = "=5.0.0" }
+tree-sitter-kotlin = { package = "willbooster-tree-sitter-kotlin", version = "=5.0.0" }
+tree-sitter-php = { package = "willbooster-tree-sitter-php", version = "=1.0.0" }
+tree-sitter-python = { package = "willbooster-tree-sitter-python", version = "=2.0.0" }
+tree-sitter-ruby = { package = "willbooster-tree-sitter-ruby", version = "=2.0.0" }
+tree-sitter-rust = { package = "willbooster-tree-sitter-rust", version = "=3.0.0" }
+tree-sitter-typescript = { package = "willbooster-tree-sitter-typescript", version = "=8.0.0" }
+tree-sitter-zig = { package = "willbooster-tree-sitter-zig", version = "=1.0.0" }
 wasm-bindgen = "=0.2.129"
