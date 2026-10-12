@@ -11,7 +11,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = "=1.0.151"
-tree-sitter = { package = "willbooster-tree-sitter", version = "2" }
+tree-sitter = { package = "willbooster-tree-sitter", version = "=2.0.1" }
 tree-sitter-c = { package = "willbooster-tree-sitter-c", version = "=5.0.0" }
 tree-sitter-c-sharp = { package = "willbooster-tree-sitter-c-sharp", version = "=4.0.0" }
 tree-sitter-cpp = { package = "willbooster-tree-sitter-cpp", version = "=3.0.0" }
