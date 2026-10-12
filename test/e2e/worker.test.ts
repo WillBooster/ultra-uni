@@ -293,6 +293,15 @@ test.each([
 });
 
 test.each([
+  { guard: '', cyclomaticComplexity: 3, cognitiveComplexity: 1 },
+  { guard: ' if x > 0', cyclomaticComplexity: 4, cognitiveComplexity: 2 },
+])('scores a Kotlin when entry with guard "$guard"', async ({ guard, cyclomaticComplexity, cognitiveComplexity }) => {
+  const source = `fun f(x: Any) = when (x) { is Int${guard} -> 1 else -> 0 }\n`;
+  const { body } = await call('measure', 'kotlin', source);
+  expect(body).toMatchObject({ result: { cyclomaticComplexity, cognitiveComplexity, maxNestingDepth: 1 } });
+});
+
+test.each([
   { construct: 'a Rust let-else', language: 'rust', source: 'fn f() { let Some(x) = opt else { return }; }\n' },
   { construct: "Kotlin's elvis operator", language: 'kotlin', source: 'fun f(a: Int?, b: Int): Int = a ?: b\n' },
   {

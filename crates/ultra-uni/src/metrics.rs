@@ -148,7 +148,6 @@ struct ComplexityCounter<'a> {
 }
 
 impl ComplexityCounter<'_> {
-    /// Scores `node` and returns the nesting its children are in.
     fn visit(&mut self, node: Node, nesting: Nesting) -> Nesting {
         let kind = node.kind();
         let profile = self.profile;
@@ -161,7 +160,7 @@ impl ComplexityCounter<'_> {
         } else if !node.is_named() {
             if kind == "else" && is_else_branch(node, profile) {
                 self.cognitive += 1;
-            } else if is_when_guard(node) {
+            } else if is_pattern_guard_keyword(node) {
                 self.cyclomatic += 1;
                 self.cognitive += 1;
             }
@@ -208,21 +207,25 @@ impl ComplexityCounter<'_> {
             inner.cognitive += 1;
             inner.control += 1;
         } else if profile.cases.contains(&kind) {
-            if !is_default_case(node, self.source, profile) {
-                self.cyclomatic += 1;
-                // Haskell's `guards` clause is itself a guard.
-                let guard = node.child_by_field_name("guard");
-                if guard.is_some() && guard == first_code_child(node) {
-                    self.cognitive += 1;
-                }
-            }
-            if has_condition_guard(node) {
-                self.cyclomatic += 1;
-                self.cognitive += 1;
-            }
+            self.score_case(node);
         }
         self.max_nesting_depth = self.max_nesting_depth.max(inner.control);
         inner
+    }
+
+    fn score_case(&mut self, node: Node) {
+        if !is_default_case(node, self.source, self.profile) {
+            self.cyclomatic += 1;
+            // Haskell's `guards` clause is itself a guard.
+            let guard = node.child_by_field_name("guard");
+            if guard.is_some() && guard == first_code_child(node) {
+                self.cognitive += 1;
+            }
+        }
+        if has_condition_guard(node) {
+            self.cyclomatic += 1;
+            self.cognitive += 1;
+        }
     }
 }
 
@@ -342,10 +345,14 @@ fn is_dart_handler_block(node: Node) -> bool {
         })
 }
 
-/// Whether the token is the `when` of a Dart pattern guard, which the grammar leaves unwrapped in
-/// the `if` or `case` holding the pattern. Other grammars' `when` keywords start their node.
-fn is_when_guard(token: Node) -> bool {
-    !token.is_named() && token.kind() == "when" && token.prev_sibling().is_some()
+// Dart's `when` and Kotlin's guarded `when_entry` use bare keywords instead of a branch node.
+fn is_pattern_guard_keyword(token: Node) -> bool {
+    !token.is_named()
+        && ((token.kind() == "when" && token.prev_sibling().is_some())
+            || (token.kind() == "if"
+                && token.parent().is_some_and(|parent| {
+                    parent.kind() == "when_entry" && parent.child_by_field_name("guard").is_some()
+                })))
 }
 
 /// Whether the node is the guard of a case, as Python's `if_clause` is, which the grammar also uses
@@ -475,7 +482,7 @@ fn is_default_case(node: Node, source: &str, profile: &Profile) -> bool {
         || has_condition_guard(node)
         || node
             .children(&mut cursor)
-            .any(|child| is_when_guard(child))
+            .any(|child| is_pattern_guard_keyword(child))
         // A Haskell alternative keeps its guards in its `match`.
         || node
             .child_by_field_name("match")
