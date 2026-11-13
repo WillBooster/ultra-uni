@@ -24,10 +24,10 @@ execFileSync('cargo', ['build', '--release', '--target', target, '--package', 'u
     ...process.env,
     AR_wasm32_unknown_unknown: path.join(rootDir, 'scripts', 'zigar'),
     CC_wasm32_unknown_unknown: path.join(rootDir, 'scripts', 'zigcc'),
-    // Those libc headers omit declarations that a full libc's `<wctype.h>` and `<assert.h>` expose
-    // and tree-sitter-cpp's scanner uses: `wchar_t` (from the compiler's `<stddef.h>`) and C11's
-    // `static_assert`.
-    CFLAGS_wasm32_unknown_unknown: `-I${wasmHeadersDir} -include stddef.h -Dstatic_assert=_Static_assert`,
+    // The wasm libc headers expect `<stdint.h>` to define `size_t`, which clang's freestanding
+    // `<stdint.h>` omits because C puts `size_t` in `<stddef.h>`.
+    CFLAGS_wasm32_unknown_unknown: '-include stddef.h',
+    WASM_HEADERS_DIR: wasmHeadersDir,
   },
   stdio: 'inherit',
 });

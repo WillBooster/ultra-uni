@@ -1,8 +1,25 @@
 #!/bin/sh
-# cc-rs passes an LLVM triple (--target=wasm32-unknown-unknown) that zig cannot parse; replace it
-# with zig's equivalent freestanding wasm target.
+# cc-rs passes an LLVM triple (--target=wasm32-unknown-unknown) that zig cannot parse, and adds
+# tree-sitter-language's wasm libc shim with -I ahead of clang's freestanding headers, shadowing
+# clang's complete <stdint.h> with an incomplete stub; replace the target and demote that -I to
+# -idirafter so clang's freestanding headers win while hosted headers still resolve to the shim.
+want_include_dir=
 for arg; do
   shift
-  case "$arg" in --target=*) ;; *) set -- "$@" "$arg" ;; esac
+  if [ -n "$want_include_dir" ]; then
+    want_include_dir=
+    if [ -n "$WASM_HEADERS_DIR" ] && [ "$arg" = "$WASM_HEADERS_DIR" ]; then
+      set -- "$@" -idirafter "$arg"
+    else
+      set -- "$@" -I "$arg"
+    fi
+    continue
+  fi
+  case "$arg" in
+    --target=*) ;;
+    -I) want_include_dir=1 ;;
+    "-I$WASM_HEADERS_DIR") set -- "$@" -idirafter "$WASM_HEADERS_DIR" ;;
+    *) set -- "$@" "$arg" ;;
+  esac
 done
 exec zig cc -target wasm32-freestanding "$@"

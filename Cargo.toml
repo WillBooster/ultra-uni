@@ -11,5 +11,6 @@ publish = false
 [profile.release]
 lto = true
 codegen-units = 1
+strip = true
 # The wasm binary is shipped inside Cloudflare Workers bundles, whose size is capped.
 opt-level = "s"
