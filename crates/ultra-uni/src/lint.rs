@@ -1,3 +1,5 @@
+use std::cell::OnceCell;
+
 use serde::Serialize;
 use tree_sitter::{Node, Tree};
 
@@ -21,10 +23,11 @@ pub struct Position {
 }
 
 pub fn lint(language: &str, source: &str, tree: Option<&Tree>) -> Vec<Diagnostic> {
-    let lines = LineIndex::new(source);
+    let lines = OnceCell::new();
+    let position = |byte| lines.get_or_init(|| LineIndex::new(source)).position(byte);
     let mut diagnostics = Vec::new();
     if let Some(tree) = tree {
-        collect_syntax_errors(&lines, tree.root_node(), &mut diagnostics);
+        collect_syntax_errors(&position, tree.root_node(), &mut diagnostics);
     }
     for mut range in trailing_whitespace(source, &value_ranges(language, source, tree)) {
         // `format` converts CRLF, but a CRLF line ending alone is not trailing whitespace.
@@ -37,8 +40,8 @@ pub fn lint(language: &str, source: &str, tree: Option<&Tree>) -> Vec<Diagnostic
         diagnostics.push(Diagnostic {
             rule: "trailing-whitespace",
             message: "Trailing whitespace".to_owned(),
-            start: lines.position(range.start),
-            end: lines.position(range.end),
+            start: position(range.start),
+            end: position(range.end),
         });
     }
     diagnostics.sort_by_key(|diagnostic| (diagnostic.start.line, diagnostic.start.column));
@@ -48,13 +51,26 @@ pub fn lint(language: &str, source: &str, tree: Option<&Tree>) -> Vec<Diagnostic
 /// Whether `lint` reports a `syntax-error`. `Node::has_error` also counts invisible zero-width
 /// MISSING tokens, such as the implicit end tag that tree-sitter-html inserts after an unclosed
 /// `<pre>`.
-pub fn has_syntax_errors(source: &str, tree: &Tree) -> bool {
-    let mut diagnostics = Vec::new();
-    collect_syntax_errors(&LineIndex::new(source), tree.root_node(), &mut diagnostics);
-    !diagnostics.is_empty()
+pub fn has_syntax_errors(tree: &Tree) -> bool {
+    let mut found = false;
+    walk(tree.root_node(), |node, _| {
+        if found || !node.has_error() {
+            return false;
+        }
+        if node.is_error() || node.is_missing() {
+            found = true;
+            return false;
+        }
+        true
+    });
+    found
 }
 
-fn collect_syntax_errors(lines: &LineIndex, root: Node, diagnostics: &mut Vec<Diagnostic>) {
+fn collect_syntax_errors(
+    position: &impl Fn(usize) -> Position,
+    root: Node,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
     walk(root, |node, _| {
         if !node.has_error() {
             return false;
@@ -69,8 +85,8 @@ fn collect_syntax_errors(lines: &LineIndex, root: Node, diagnostics: &mut Vec<Di
         diagnostics.push(Diagnostic {
             rule: "syntax-error",
             message,
-            start: lines.position(node.start_byte()),
-            end: lines.position(node.end_byte()),
+            start: position(node.start_byte()),
+            end: position(node.end_byte()),
         });
         false
     });

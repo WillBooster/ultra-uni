@@ -69,6 +69,7 @@ pub fn measure(source: &str, tree: Option<&Tree>, profile: Option<&Profile>) -> 
 #[derive(Clone, Copy, PartialEq)]
 enum LineKind {
     Blank,
+    Unmarked,
     Comment,
     Code,
 }
@@ -76,23 +77,44 @@ enum LineKind {
 /// A line is blank when it holds only whitespace, a comment line when every token on it is part of
 /// a comment, and a code line otherwise.
 fn measure_lines(source: &str, tree: Option<&Tree>) -> LineMetrics {
-    let mut kinds: Vec<LineKind> = source.lines().map(|_| LineKind::Blank).collect();
-    let is_blank: Vec<bool> = source.lines().map(|line| line.trim().is_empty()).collect();
-    match tree {
-        Some(tree) => mark_lines(source, tree.root_node(), &mut kinds),
-        None => kinds.fill(LineKind::Code),
-    }
+    let Some(tree) = tree else {
+        let mut total = 0;
+        let mut blank = 0;
+        for line in source.lines() {
+            total += 1;
+            if line.trim().is_empty() {
+                blank += 1;
+            }
+        }
+        return LineMetrics {
+            total,
+            code: total - blank,
+            comment: 0,
+            blank,
+        };
+    };
+    let mut kinds: Vec<LineKind> = source
+        .lines()
+        .map(|line| {
+            if line.trim().is_empty() {
+                LineKind::Blank
+            } else {
+                LineKind::Unmarked
+            }
+        })
+        .collect();
+    mark_lines(source, tree.root_node(), &mut kinds);
     let mut metrics = LineMetrics {
         total: kinds.len() as u32,
         code: 0,
         comment: 0,
         blank: 0,
     };
-    for (kind, blank) in kinds.into_iter().zip(is_blank) {
+    for kind in kinds {
         match kind {
-            _ if blank => metrics.blank += 1,
+            LineKind::Blank => metrics.blank += 1,
             LineKind::Comment => metrics.comment += 1,
-            LineKind::Code | LineKind::Blank => metrics.code += 1,
+            LineKind::Code | LineKind::Unmarked => metrics.code += 1,
         }
     }
     metrics
@@ -149,8 +171,6 @@ struct ComplexityCounter<'a> {
 
 impl ComplexityCounter<'_> {
     fn visit(&mut self, node: Node, nesting: Nesting) -> Nesting {
-        let kind = node.kind();
-        let profile = self.profile;
         let mut inner = nesting;
         if let Some(operator) = self.logical_operator(node) {
             self.cyclomatic += 1;
@@ -158,30 +178,28 @@ impl ComplexityCounter<'_> {
                 self.cognitive += 1;
             }
         } else if !node.is_named() {
-            if kind == "else" && is_else_branch(node, profile) {
-                self.cognitive += 1;
-            } else if is_pattern_guard_keyword(node) {
-                self.cyclomatic += 1;
-                self.cognitive += 1;
-            }
-        } else if profile.functions.contains(&kind)
-            && !is_function_type(node)
-            && !(profile.optional_body_functions.contains(&kind) && !has_body(node))
-        {
-            if !continues_definition(node, self.source) {
-                self.function_count += 1;
-                self.cyclomatic += 1;
-            }
-            if nesting.function > 0 {
-                inner.cognitive += 1;
-            }
-            inner.function += 1;
-            // Haskell's `\case` is a function whose body is a switch.
-            if profile.switches.contains(&kind) {
-                self.cognitive += 1 + u64::from(inner.cognitive);
-                inner.cognitive += 1;
-                inner.control += 1;
-            }
+            self.visit_token(node);
+        } else {
+            self.visit_named(node, &mut inner);
+        }
+        self.max_nesting_depth = self.max_nesting_depth.max(inner.control);
+        inner
+    }
+
+    fn visit_token(&mut self, token: Node) {
+        if token.kind() == "else" && is_else_branch(token, self.profile) {
+            self.cognitive += 1;
+        } else if is_pattern_guard_keyword(token) {
+            self.cyclomatic += 1;
+            self.cognitive += 1;
+        }
+    }
+
+    fn visit_named(&mut self, node: Node, inner: &mut Nesting) {
+        let kind = node.kind();
+        let profile = self.profile;
+        if is_function_definition(node, profile) {
+            self.visit_function(node, inner);
         } else if profile.chained_branches.contains(&kind)
             || (profile.branches.contains(&kind) && is_guard(node))
         {
@@ -194,23 +212,36 @@ impl ComplexityCounter<'_> {
             self.cyclomatic += 1;
             // `else if` is scored by its `else` and continues the chain at the same level.
             if !follows_else(node, profile) {
-                self.cognitive += 1 + u64::from(nesting.cognitive);
-                inner.cognitive += 1;
-                inner.control += 1;
+                self.enter_control(inner);
             }
-        } else if profile.alternative_branches.contains(&kind) {
-            if node.child_by_field_name("alternative").is_some() {
-                self.cyclomatic += 1;
-            }
+        } else if adds_else_scored_path(node, profile) {
+            self.cyclomatic += 1;
         } else if profile.switches.contains(&kind) {
-            self.cognitive += 1 + u64::from(nesting.cognitive);
-            inner.cognitive += 1;
-            inner.control += 1;
+            self.enter_control(inner);
         } else if profile.cases.contains(&kind) {
             self.score_case(node);
         }
-        self.max_nesting_depth = self.max_nesting_depth.max(inner.control);
-        inner
+    }
+
+    fn visit_function(&mut self, node: Node, inner: &mut Nesting) {
+        if !continues_definition(node, self.source) {
+            self.function_count += 1;
+            self.cyclomatic += 1;
+        }
+        if inner.function > 0 {
+            inner.cognitive += 1;
+        }
+        inner.function += 1;
+        // Haskell's `\case` is a function whose body is a switch.
+        if self.profile.switches.contains(&node.kind()) {
+            self.enter_control(inner);
+        }
+    }
+
+    fn enter_control(&mut self, inner: &mut Nesting) {
+        self.cognitive += 1 + u64::from(inner.cognitive);
+        inner.cognitive += 1;
+        inner.control += 1;
     }
 
     fn score_case(&mut self, node: Node) {
@@ -275,14 +306,9 @@ impl<'a> ComplexityCounter<'a> {
     }
 
     /// Whether the operator continues a sequence of the same operator, as in `a && b && c`: an
-    /// adjacent operand contains it (nested chains) or an earlier sibling is it (flat chains such as
-    /// Dart's `??`).
+    /// adjacent operand contains it (nested chains) or the nearest earlier logical operator in the
+    /// same chain is it (flat chains such as Dart's `??` and Haskell's `operator_chain`).
     fn continues_logical_sequence(&self, node: Node, operator: &str) -> bool {
-        // Operators chained in source order are ordered by the spine alone; the operand test would
-        // also mark the chain's first operator as a continuation.
-        if self.profile.operator_node.is_some() {
-            return self.follows_same_operator_in_spine(node, operator);
-        }
         let in_operand = [prev_code_sibling(node), next_code_sibling(node)]
             .into_iter()
             .flatten()
@@ -293,32 +319,26 @@ impl<'a> ComplexityCounter<'a> {
                     .any(|child| self.logical_operator(child) == Some(operator))
             });
         let earlier_in_chain = std::iter::successors(node.prev_sibling(), Node::prev_sibling)
-            .any(|sibling| self.logical_operator(sibling) == Some(operator));
+            .find_map(|sibling| self.logical_operator(sibling))
+            == Some(operator);
         in_operand || earlier_in_chain
     }
+}
 
-    /// Whether the nearest logical operator up the right-operand spine is the same operator, for
-    /// grammars that chain operators in source order without precedence (Haskell parses
-    /// `a > 0 && b > 0` as `a > (0 && b > 0)`).
-    fn follows_same_operator_in_spine(&self, node: Node, operator: &str) -> bool {
-        let mut current = node.parent();
-        while let Some(expression) = current {
-            let Some(parent) = expression
-                .parent()
-                .filter(|parent| parent.child_by_field_name("right_operand") == Some(expression))
-            else {
-                return false;
-            };
-            if let Some(found) = parent
-                .child_by_field_name("operator")
-                .and_then(|token| self.logical_operator(token))
-            {
-                return found == operator;
-            }
-            current = Some(parent);
-        }
-        false
-    }
+fn is_function_definition(node: Node, profile: &Profile) -> bool {
+    let kind = node.kind();
+    profile.functions.contains(&kind)
+        && !is_function_type(node)
+        && (!profile.optional_body_functions.contains(&kind) || has_body(node))
+}
+
+/// Constructs whose `else` token already scores their cognitive point: Rust's `else if`
+/// (`else_clause` with a `condition`) and `alternative_branches` such as Rust's `let ... else`.
+fn adds_else_scored_path(node: Node, profile: &Profile) -> bool {
+    let kind = node.kind();
+    (kind == "else_clause" && node.child_by_field_name("condition").is_some())
+        || (profile.alternative_branches.contains(&kind)
+            && node.child_by_field_name("alternative").is_some())
 }
 
 /// Haskell's grammar names a list comprehension filter `boolean`, as it does a guard's condition,
@@ -428,21 +448,27 @@ fn is_else_branch(token: Node, profile: &Profile) -> bool {
 /// comments, is the wildcard `_` or, in a Haskell guard, `otherwise`, so `(_)` matches anything
 /// like `_`; elsewhere `otherwise` is an ordinary name.
 fn is_wildcard_pattern(pattern: Node, source: &str, is_guard_clause: bool) -> bool {
-    let mut tokens = Vec::new();
+    let mut sole_token: Option<&str> = None;
+    let mut too_many = false;
     walk(pattern, |node, _| {
-        if node.is_extra() {
+        if too_many || node.is_extra() {
             return false;
         }
         if node.child_count() == 0 && !matches!(node.kind(), "(" | ")") {
-            tokens.push(&source[node.byte_range()]);
+            if sole_token.is_some() {
+                too_many = true;
+                return false;
+            }
+            sole_token = Some(&source[node.byte_range()]);
         }
         true
     });
-    match tokens.as_slice() {
-        ["_"] => true,
-        ["otherwise"] => is_guard_clause,
-        _ => false,
-    }
+    !too_many
+        && match sole_token {
+            Some("_") => true,
+            Some("otherwise") => is_guard_clause,
+            _ => false,
+        }
 }
 
 /// The construct an `else` token belongs to, looking through the node that wraps the keyword and

@@ -691,8 +691,8 @@ test('reports syntax errors and trailing whitespace outside literals', async () 
       },
       {
         rule: 'syntax-error',
-        message: 'Unexpected syntax',
-        start: { line: 3, column: 9 },
+        message: 'Missing identifier',
+        start: { line: 3, column: 10 },
         end: { line: 3, column: 10 },
       },
     ],
@@ -846,9 +846,16 @@ test.each([
   expect(await call('format', 'kotlin', source)).toEqual({ status: 200, body: { result: source } });
 });
 
+test('trims trailing whitespace inside Haskell comments', async () => {
+  expect(await call('format', 'haskell', '-- comment   \nf = 1\n')).toEqual({
+    status: 200,
+    body: { result: '-- comment\nf = 1\n' },
+  });
+});
+
 test('keeps code unchanged when formatting would introduce a syntax error', async () => {
-  expect(await call('lint', 'ruby', 'x = y&')).toEqual({ status: 200, body: { result: [] } });
-  expect(await call('format', 'ruby', 'x = y&')).toEqual({ status: 200, body: { result: 'x = y&' } });
+  expect(await call('lint', 'ruby', 'f &')).toEqual({ status: 200, body: { result: [] } });
+  expect(await call('format', 'ruby', 'f &')).toEqual({ status: 200, body: { result: 'f &' } });
 });
 
 test('refuses to format code with syntax errors', async () => {

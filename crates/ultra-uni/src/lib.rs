@@ -4,6 +4,8 @@ mod lint;
 mod metrics;
 mod tree;
 
+use std::cell::RefCell;
+
 use serde::Serialize;
 use tree_sitter::{Parser, Tree};
 use wasm_bindgen::prelude::*;
@@ -82,27 +84,26 @@ pub fn format(
     source: &str,
 ) -> Result<String, JsError> {
     let (_, tree) = parse(language, source)?;
-    if tree
-        .as_ref()
-        .is_some_and(|tree| lint::has_syntax_errors(source, tree))
-    {
+    if tree.as_ref().is_some_and(lint::has_syntax_errors) {
         return Err(JsError::new("Cannot format code with syntax errors"));
     }
     let formatted = format::format(language, source, tree.as_ref());
     if formatted == source {
         return Ok(formatted);
     }
-    // Whitespace can change a parse, as a final newline does after Ruby's `x = y&`, so the output
+    // Whitespace can change a parse, as a final newline does after Ruby's `f &`, so the output
     // must stay free of the syntax errors `lint` reports.
     let (_, formatted_tree) = parse(language, &formatted)?;
-    let breaks_syntax = formatted_tree
-        .as_ref()
-        .is_some_and(|tree| lint::has_syntax_errors(&formatted, tree));
+    let breaks_syntax = formatted_tree.as_ref().is_some_and(lint::has_syntax_errors);
     Ok(if breaks_syntax {
         source.to_owned()
     } else {
         formatted
     })
+}
+
+thread_local! {
+    static PARSER: RefCell<Parser> = RefCell::new(Parser::new());
 }
 
 fn parse(language: &str, source: &str) -> Result<(LanguageSpec, Option<Tree>), JsError> {
@@ -111,11 +112,14 @@ fn parse(language: &str, source: &str) -> Result<(LanguageSpec, Option<Tree>), J
     let Some(grammar) = &spec.grammar else {
         return Ok((spec, None));
     };
-    let mut parser = Parser::new();
-    parser.set_language(grammar)?;
-    let tree = parser
-        .parse(source, None)
-        .ok_or_else(|| JsError::new("Parsing was cancelled"))?;
+    let tree = PARSER.with_borrow_mut(|parser| -> Result<Tree, JsError> {
+        if parser.language().as_deref() != Some(grammar) {
+            parser.set_language(grammar)?;
+        }
+        parser
+            .parse(source)
+            .ok_or_else(|| JsError::new("Parsing was cancelled"))
+    })?;
     Ok((spec, Some(tree)))
 }
 

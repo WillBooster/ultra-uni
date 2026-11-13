@@ -37,7 +37,7 @@ pub fn value_ranges(language: &str, source: &str, tree: Option<&Tree>) -> Vec<Ra
         return Vec::new();
     };
     let mut ranges = Vec::new();
-    collect_value_ranges(source, tree.root_node(), &mut ranges);
+    collect_value_ranges(language, source, tree.root_node(), &mut ranges);
     if language == "php" {
         ranges.extend(php_template_ranges(source, tree.root_node()));
         ranges.sort_by_key(|range| range.start);
@@ -102,29 +102,35 @@ pub fn trailing_whitespace(source: &str, values: &[Range<usize>]) -> Vec<Range<u
 /// whitespace between them is code. Dart puts adjacent literals in one `string_literal` whose named
 /// children are all quoted literals, while other grammars' `string_literal` holds fragments.
 fn is_concatenation(node: Node) -> bool {
-    let mut cursor = node.walk();
-    let parts: Vec<Node> = node
-        .named_children(&mut cursor)
-        .filter(|child| !child.is_extra())
-        .collect();
-    matches!(
+    if matches!(
         node.kind(),
         "concatenated_string" | "chained_string" | "string_array"
-    ) || parts.len() > 1
-        && parts
-            .iter()
-            .all(|part| part.kind().contains("string_literal"))
+    ) {
+        return true;
+    }
+    let mut cursor = node.walk();
+    let mut count = 0;
+    for part in node
+        .named_children(&mut cursor)
+        .filter(|child| !child.is_extra())
+    {
+        if !part.kind().contains("string_literal") {
+            return false;
+        }
+        count += 1;
+    }
+    count > 1
 }
 
 /// Collects the outermost value nodes, because a grammar can leave value bytes outside every
 /// child node, such as the leading whitespace of a Rust raw string or a whitespace-only PHP heredoc
 /// body.
-fn collect_value_ranges(source: &str, root: Node, ranges: &mut Vec<Range<usize>>) {
+fn collect_value_ranges(language: &str, source: &str, root: Node, ranges: &mut Vec<Range<usize>>) {
     walk(root, |node, _| {
         let kind = node.kind();
         // Anonymous tokens are keywords and punctuation, such as TypeScript's `string` type.
         let is_value = node.is_named()
-            && is_literal_kind(kind)
+            && is_literal_kind(language, kind)
             && !is_concatenation(node)
             // An escaped space is a value byte even where no value node encloses it.
             || kind.contains("escape_sequence")
@@ -166,14 +172,21 @@ fn is_preformatted_element(source: &str, node: Node) -> bool {
             })
 }
 
-fn is_literal_kind(kind: &str) -> bool {
-    ["string", "heredoc", "nowdoc", "quasiquote", "uninterpreted", "regex", "subshell"]
-        .iter()
-        .any(|keyword| kind.contains(keyword))
-        // HTML raw text and attribute values, and JSP (embedded-template) text and code, whose
-        // inner literals no grammar models.
-        || matches!(
-            kind,
-            "raw_text" | "attribute_value" | "quoted_attribute_value" | "code" | "content"
-        )
+fn is_literal_kind(language: &str, kind: &str) -> bool {
+    [
+        "string",
+        "heredoc",
+        "nowdoc",
+        "quasiquote",
+        "uninterpreted",
+        "regex",
+        "subshell",
+        "attribute_value",
+    ]
+    .iter()
+    .any(|keyword| kind.contains(keyword))
+        // HTML raw text, and JSP (embedded-template) text and code, whose inner literals no
+        // grammar models.
+        || kind == "raw_text"
+        || (language == "jsp" && matches!(kind, "code" | "content"))
 }
