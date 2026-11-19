@@ -3,6 +3,12 @@ node = "26.13.1"
 bun = "1.4.4"
 zig = "0.16.0"
 "github:wasm-bindgen/wasm-bindgen" = "0.2.129"
+rust = { version = "1.100.0", profile = "minimal", components = [
+  "clippy",
+  "rustfmt",
+], targets = [
+  "wasm32-unknown-unknown",
+] }
 
 [settings]
 idiomatic_version_file_enable_tools = ["rust"]
